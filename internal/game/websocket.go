@@ -26,7 +26,7 @@ func (gm *GameManager) StartWSServer() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/ws", gm.handleWSConnection)
 
-	addr := ":" + config.WSPort
+	addr := fmt.Sprintf(":%d", config.WSPort)
 	log.Printf("📡 WebSocket 独立服务器已启动，监听端口: %s", addr)
 
 	if err := http.ListenAndServe(addr, mux); err != nil {
@@ -145,7 +145,7 @@ func (gm *GameManager) handleWSConnection(w http.ResponseWriter, r *http.Request
 
 					respContext := context
 					if msgContent == "im_here" {
-						respContext = "" 
+						respContext = ""
 					}
 
 					resp := map[string]interface{}{

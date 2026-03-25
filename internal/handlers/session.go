@@ -282,7 +282,7 @@ func HandleSession(c *gin.Context) {
 	serverOptionsBytes, _ := json.Marshal(opts)
 
 	// 5. 组装最终响应
-	ip := config.Host + ":" + config.Port
+	ip := fmt.Sprintf("%s:%d", config.Host, config.Port)
 	userID := user.ID
 
 	// 构建 decks 数据

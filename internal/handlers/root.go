@@ -17,7 +17,7 @@ import (
 )
 
 func GetRoot(c *gin.Context) {
-	baseURL := "http://" + config.Host + ":" + config.Port
+	baseURL := fmt.Sprintf("http://%s:%d", config.Host, config.Port)
 
 	// 1. 初始化基础 Endpoints
 	endpoints := map[string]interface{}{
@@ -116,7 +116,7 @@ func GetRoot(c *gin.Context) {
 		"build_info": gin.H{
 			"build_timestamp": "2025-10-13T17:31:40Z",
 			"commit_hash":     "dfaf581c",
-			"version":         config.Version,
+			"version":         0,
 		},
 		"current_user": currentUser,
 		"endpoints":    endpoints,

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 
 	"kards-backend-go/internal/config"
@@ -15,7 +16,7 @@ import (
 )
 
 func main() {
-	log.Printf("🔧 正在初始化 Kards Server, 版本: %s", config.Version)
+	log.Printf("🔧 正在初始化 Kards Server")
 	database.InitDB()
 	go game.GlobalManager.StartMatchmaker()
 	go game.GlobalManager.StartWSServer()
@@ -67,7 +68,7 @@ func main() {
 	}
 
 	log.Printf("🚀 HTTP 服务已启动! 监听端口: %s", config.Port)
-	if err := r.Run(":" + config.Port); err != nil {
+	if err := r.Run(fmt.Sprintf(":%d", config.Port)); err != nil {
 		log.Fatalf("❌ 无法启动服务器: %v", err)
 	}
 }
