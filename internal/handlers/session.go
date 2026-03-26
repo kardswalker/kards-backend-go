@@ -251,7 +251,7 @@ func HandleSession(c *gin.Context) {
 		NewRewards:             1,
 		MostPopularProducts:    "304;238;318;319;320;321;322;324;11;270;1;52;45;18;56;72;7;149;70;143;9;53;57;75;151;228;153;79",
 		WinterWarDate:          "2023.11.29-09.00.00",
-		WebsocketURL:           fmt.Sprintf("ws://%s:%s/ws", config.Host, config.WSPort),
+		WebsocketURL:           fmt.Sprintf("ws://%s:%d/ws", config.Host, config.WSPort),
 		HomefrontDate:          "2025.11.27-09.00.00",
 		ShowFullImage:          true,
 		NewEffectBar:           1,

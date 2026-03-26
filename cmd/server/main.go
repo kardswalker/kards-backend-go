@@ -42,7 +42,7 @@ func main() {
 		auth.GET("/matches/v2/:match_id/mulligan-left", handlers.GetMulliganLeft)
 		auth.GET("/matches/v2/:match_id/mulligan-right", handlers.GetMulliganRight)
 		auth.GET("/players/:player_id/items", handlers.GetItems)
-		auth.PUT("/players/:player_id/items/change", handlers.ChangeItem)
+		auth.PUT("/players/:player_id/items/:player_id", handlers.ChangeItem)
 		auth.GET("/matches/v2/", handlers.GetMatchInfo)
 		match := auth.Group("/matches/v2/:match_id")
 		{
@@ -67,7 +67,7 @@ func main() {
 		}
 	}
 
-	log.Printf("🚀 HTTP 服务已启动! 监听端口: %s", config.Port)
+	log.Printf("🚀 HTTP 服务已启动! 监听端口: %d", config.Port)
 	if err := r.Run(fmt.Sprintf(":%d", config.Port)); err != nil {
 		log.Fatalf("❌ 无法启动服务器: %v", err)
 	}
