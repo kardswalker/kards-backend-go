@@ -13,6 +13,7 @@ import (
 // DeckRequest 用于接收前端卡组请求
 type DeckRequest struct {
 	Action      string `json:"action"`
+	ID          uint   `json:"id,omitempty"`
 	Name        string `json:"name"`
 	MainFaction string `json:"main_faction"`
 	AllyFaction string `json:"ally_faction"`

@@ -1,22 +1,23 @@
 package config
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"strconv"
 	"time"
+
+	"gopkg.in/yaml.v3"
 )
 
 // Config 定义所有可配置项
 type Config struct {
-	Port         int    `json:"port"`
-	Ip           string `json:"ip"`
-	WSPort       int    `json:"wsport"`
-	DatabaseURL  string `json:"database_url"`
-	JWTKey       string `json:"jwt_key"`
-	JWTAlgorithm string `json:"jwt_algorithm"`
-	JWTExpiry    string `json:"jwt_expiry"`
+	Port         int    `yaml:"port"`
+	Ip           string `yaml:"ip"`
+	WSPort       int    `yaml:"wsport"`
+	DatabaseURL  string `yaml:"database_url"`
+	JWTKey       string `yaml:"jwt_key"`
+	JWTAlgorithm string `yaml:"jwt_algorithm"`
+	JWTExpiry    string `yaml:"jwt_expiry"`
 }
 
 var cfg *Config
@@ -63,34 +64,57 @@ func init() {
 
 func LoadConfig() (*Config, error) {
 	cfgFromFile := &Config{}
-	if err := loadJSONConfig(cfgFromFile); err != nil && !os.IsNotExist(err) {
-		return nil, fmt.Errorf("failed to read config.json: %w", err)
+	if err := loadYAMLConfig(cfgFromFile); err != nil && !os.IsNotExist(err) {
+		return nil, fmt.Errorf("failed to read config.yaml: %w", err)
 	}
 
 	applyEnvOverrides(cfgFromFile)
 
 	applyDefaults(cfgFromFile)
 
+	// 如果配置文件不存在，则创建它
+	configPath := os.Getenv("CONFIG_PATH")
+	if configPath == "" {
+		configPath = "config.yaml"
+	}
+	if _, err := os.Stat(configPath); os.IsNotExist(err) {
+		if err := saveYAMLConfig(cfgFromFile); err != nil {
+			return nil, fmt.Errorf("failed to create config.yaml: %w", err)
+		}
+	}
+
 	return cfgFromFile, nil
 }
 
-func loadJSONConfig(cfg *Config) error {
+func loadYAMLConfig(cfg *Config) error {
 	configPath := os.Getenv("CONFIG_PATH")
 	if configPath == "" {
-		configPath = "config.json"
+		configPath = "config.yaml"
 	}
 
-	file, err := os.Open(configPath)
+	data, err := os.ReadFile(configPath)
 	if err != nil {
 		return err
 	}
-	defer file.Close()
 
-	decoder := json.NewDecoder(file)
-	if err := decoder.Decode(cfg); err != nil {
+	if err := yaml.Unmarshal(data, cfg); err != nil {
 		return err
 	}
 	return nil
+}
+
+func saveYAMLConfig(cfg *Config) error {
+	configPath := os.Getenv("CONFIG_PATH")
+	if configPath == "" {
+		configPath = "config.yaml"
+	}
+
+	data, err := yaml.Marshal(cfg)
+	if err != nil {
+		return err
+	}
+
+	return os.WriteFile(configPath, data, 0644)
 }
 
 func applyEnvOverrides(cfg *Config) {

@@ -18,7 +18,7 @@ type Item struct {
 // User 玩家结构体
 type User struct {
 	ID         uint   `gorm:"primaryKey"`
-	Username   string `gorm:"size:50;uniqueIndex"`
+	Username   string `gorm:"size:50;uniqueIndex"` // 已有唯一索引
 	Password   string `gorm:"size:50"`
 	PlayerName string `gorm:"size:50"`
 	PlayerJWT  string `gorm:"type:text"`
@@ -46,6 +46,10 @@ type User struct {
 	Gold            int    `gorm:"default:0"`
 	DraftAdmissions int    `gorm:"default:0"`
 	DoubleXpEndDate string `gorm:"size:50"`
+
+	// 物品和装备（存储为JSON）
+	ItemsJSON    string `gorm:"type:text;serializer:json"` // JSON格式的物品列表
+	EquippedJSON string `gorm:"type:text;serializer:json"` // JSON格式的装备列表
 
 	// 状态
 	IsOnline   bool `gorm:"default:false"`

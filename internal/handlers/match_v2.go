@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"reflect"
@@ -8,6 +9,7 @@ import (
 	"time"
 
 	"kards-backend-go/internal/config"
+	"kards-backend-go/internal/database"
 	"kards-backend-go/internal/game"
 	"kards-backend-go/internal/models"
 	"kards-backend-go/pkg/security"
@@ -70,6 +72,35 @@ func GetMatchInfo(c *gin.Context) {
 	match.RLock()
 	defer match.RUnlock()
 
+	// 查询左边玩家的装备物品
+	var leftUser models.User
+	if err := database.DB.First(&leftUser, "id = ?", match.PlayerLeft).Error; err == nil && leftUser.EquippedJSON != "" {
+		json.Unmarshal([]byte(leftUser.EquippedJSON), &leftUser.EquippedItems)
+	}
+	if leftUser.EquippedItems == nil {
+		leftUser.EquippedItems = []models.Item{}
+	}
+
+	// 查询右边玩家的装备物品
+	var rightUser models.User
+	if err := database.DB.First(&rightUser, "id = ?", match.PlayerRight).Error; err == nil && rightUser.EquippedJSON != "" {
+		json.Unmarshal([]byte(rightUser.EquippedJSON), &rightUser.EquippedItems)
+	}
+	if rightUser.EquippedItems == nil {
+		rightUser.EquippedItems = []models.Item{}
+	}
+
+	// 提取装备物品ID
+	equipmentLeft := make([]string, len(leftUser.EquippedItems))
+	for i, item := range leftUser.EquippedItems {
+		equipmentLeft[i] = item.ItemID
+	}
+
+	equipmentRight := make([]string, len(rightUser.EquippedItems))
+	for i, item := range rightUser.EquippedItems {
+		equipmentRight[i] = item.ItemID
+	}
+
 	resp := gin.H{
 		"local_subactions": true,
 		"match_and_starting_data": gin.H{
@@ -110,27 +141,8 @@ func GetMatchInfo(c *gin.Context) {
 				"deck_left":           match.LeftDeckCards,
 				"deck_right":          match.RightDeckCards,
 
-				"equipment_left": []string{
-					"item_lugerinn",
-					"emote_christmas_ho_ho_ho",
-					"emote_honorable_fight",
-					"emote_that_was_enlightening",
-					"emote_boo",
-					"emote_glory_empire",
-					"avatar_white_death",
-					"emote_show_me_new",
-				},
-				"equipment_right": []string{
-					"item_lugerinn",
-					"emote_glhf",
-					"emote_its_over",
-					"emote_watch_me",
-					"emote_sorry",
-					"emote_boo",
-					"emote_achtung",
-					"emote_nuts",
-					"avatar_2e_brigade",
-				},
+				"equipment_left":  equipmentLeft,
+				"equipment_right": equipmentRight,
 
 				"is_ai_match":         false,
 				"left_player_name":    match.LeftPlayerName,
@@ -230,6 +242,13 @@ func EndMatch(c *gin.Context) {
 	}
 
 	winnerSide, _ := valData["winner_side"].(string)
+
+	// 如果是投降，获胜者总是另一方
+	if user.ID == match.PlayerLeft {
+		winnerSide = "right" // 左边投降，右边获胜
+	} else if user.ID == match.PlayerRight {
+		winnerSide = "left" // 右边投降，左边获胜
+	}
 
 	match.Lock()
 	defer match.Unlock()

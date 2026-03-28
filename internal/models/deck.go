@@ -12,7 +12,7 @@ type Deck struct {
 	Favorite bool   `gorm:"default:false"`       // 是否收藏
 
 	// 属于哪个玩家
-	UserID uint
+	UserID uint `gorm:"index"` // 添加索引
 
 	LastPlayed string `gorm:"size:50;default:''"` // 最后使用时间
 	CreateDate string `gorm:"size:50;default:''"` // 创建时间

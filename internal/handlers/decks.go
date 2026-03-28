@@ -5,6 +5,7 @@ import (
 	"kards-backend-go/internal/database"
 	"kards-backend-go/internal/models"
 	"kards-backend-go/pkg/utils"
+	"log"
 	"net/http"
 	"strconv"
 
@@ -99,6 +100,52 @@ func UpdateDeck(c *gin.Context) {
 	}
 
 	c.Status(http.StatusNoContent)
+}
+
+// ChangeDeck 更改卡组（重命名或更换卡背）
+func ChangeDeck(c *gin.Context) {
+	user, _, ok := utils.GetAuthedPlayer(c)
+	if !ok {
+		return
+	}
+
+	var req utils.DeckRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+		return
+	}
+
+	var deck models.Deck
+	if err := database.DB.Where("id = ? AND user_id = ?", req.ID, user.ID).First(&deck).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "deck not found"})
+		return
+	}
+
+	updates := map[string]interface{}{}
+	switch req.Action {
+	case "rename":
+		if req.Name != "" {
+			updates["name"] = req.Name
+		}
+	case "change_card_back":
+		if req.Name != "" {
+			updates["card_back"] = req.Name
+		}
+	default:
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid action"})
+		return
+	}
+	updates["modify_date"] = utils.GetKardsNow()
+
+	if err := database.DB.Model(&deck).Updates(updates).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.Status(http.StatusNoContent)
+
+	// 调试日志
+	log.Printf("更改卡组成功: player_id=%d, deck_id=%d, action=%s, value=%s", user.ID, req.ID, req.Action, req.Name)
 }
 
 // DeleteDeck 删除卡组

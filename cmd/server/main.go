@@ -34,15 +34,14 @@ func main() {
 	auth := r.Group("/")
 	auth.Use(middleware.JWTAuth())
 	{
-		auth.GET("/items/:player_id", handlers.GetItems)
 		auth.GET("/players/:player_id/library", handlers.GetLibrary)
 		auth.GET("/matches/v2/reconnect", handlers.Reconnect)
 		auth.POST("/lobbyplayers", handlers.JoinLobby)
 		auth.PUT("/matches/v2/:match_id/mulligan", handlers.HandleMulligan)
 		auth.GET("/matches/v2/:match_id/mulligan-left", handlers.GetMulliganLeft)
 		auth.GET("/matches/v2/:match_id/mulligan-right", handlers.GetMulliganRight)
-		auth.GET("/players/:player_id/items", handlers.GetItems)
-		auth.PUT("/players/:player_id/items/:player_id", handlers.ChangeItem)
+		auth.GET("/items/:player_id", handlers.GetItems)
+		auth.POST("/items/:player_id", handlers.ChangeItem)
 		auth.GET("/matches/v2/", handlers.GetMatchInfo)
 		match := auth.Group("/matches/v2/:match_id")
 		{
@@ -63,7 +62,9 @@ func main() {
 			player.POST("/friends", handlers.HandleFriends)
 			player.POST("/decks", handlers.CreateDeck)
 			player.PUT("/decks/:deck_id", handlers.UpdateDeck)
+			player.PUT("/decks", handlers.ChangeDeck)
 			player.DELETE("/decks/:deck_id", handlers.DeleteDeck)
+			player.PUT("/player/:player_id/decks", handlers.ChangeDeck)
 		}
 	}
 
