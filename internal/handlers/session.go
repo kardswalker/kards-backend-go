@@ -181,8 +181,11 @@ func HandleSession(c *gin.Context) {
 
 	// 1. 查找或创建用户
 	var user models.User
-	result := database.DB.Preload("Decks").Where("username = ?", credentials.Username).First(&user)
-	if result.Error != nil {
+	userQuery := database.DB.
+		Select("id", "username", "password", "player_name", "player_tag").
+		Where("username = ?", credentials.Username).
+		First(&user)
+	if userQuery.Error != nil {
 		user = models.User{
 			Username:   credentials.Username,
 			Password:   credentials.Password,
@@ -201,9 +204,12 @@ func HandleSession(c *gin.Context) {
 	tokenString, _ := token.SignedString(config.JWTKey)
 	database.DB.Model(&user).Update("PlayerJWT", tokenString)
 
-	// 3. 查询卡组（关键修复）
+	// 3. 查询卡组
 	var decks []models.Deck
-	if err := database.DB.Where("user_id = ?", user.ID).Find(&decks).Error; err != nil {
+	if err := database.DB.
+		Select("id", "name", "main_faction", "ally_faction", "card_back", "deck_code", "favorite", "last_played", "create_date", "modify_date").
+		Where("user_id = ?", user.ID).
+		Find(&decks).Error; err != nil {
 		decks = []models.Deck{}
 	}
 
