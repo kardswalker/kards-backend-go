@@ -98,7 +98,6 @@ func GetMatchInfo(c *gin.Context) {
 		rightCardBack = normalizeCardBack(rightDeck.CardBack)
 	}
 
-	// 查询左边玩家的装备物品
 	var leftUser models.User
 	if err := database.DB.First(&leftUser, "id = ?", match.PlayerLeft).Error; err == nil && leftUser.EquippedJSON != "" {
 		json.Unmarshal([]byte(leftUser.EquippedJSON), &leftUser.EquippedItems)
@@ -107,7 +106,6 @@ func GetMatchInfo(c *gin.Context) {
 		leftUser.EquippedItems = []models.Item{}
 	}
 
-	// 查询右边玩家的装备物品
 	var rightUser models.User
 	if err := database.DB.First(&rightUser, "id = ?", match.PlayerRight).Error; err == nil && rightUser.EquippedJSON != "" {
 		json.Unmarshal([]byte(rightUser.EquippedJSON), &rightUser.EquippedItems)
@@ -116,7 +114,6 @@ func GetMatchInfo(c *gin.Context) {
 		rightUser.EquippedItems = []models.Item{}
 	}
 
-	// 提取装备物品ID
 	equipmentLeft := make([]string, len(leftUser.EquippedItems))
 	for i, item := range leftUser.EquippedItems {
 		equipmentLeft[i] = item.ItemID
@@ -156,26 +153,21 @@ func GetMatchInfo(c *gin.Context) {
 				"winner_side":         match.WinnerSide,
 			},
 			"starting_data": gin.H{
-				"ally_faction_left":  getStringField(match.LeftDeckData, "AllyCountry", "AllyFaction"),
-				"ally_faction_right": getStringField(match.RightDeckData, "AllyCountry", "AllyFaction"),
-
-				"card_back_left":  leftCardBack,
-				"card_back_right": rightCardBack,
-
-				"starting_hand_left":  match.LeftHandCards,
-				"starting_hand_right": match.RightHandCards,
-				"deck_left":           match.LeftDeckCards,
-				"deck_right":          match.RightDeckCards,
-
-				"equipment_left":  equipmentLeft,
-				"equipment_right": equipmentRight,
-
-				"is_ai_match":         false,
-				"left_player_name":    match.LeftPlayerName,
-				"left_player_officer": false,
-				"left_player_tag":     match.LeftPlayerTag,
-				"location_card_left":  firstCard(match.LeftCardsData),
-
+				"ally_faction_left":    getStringField(match.LeftDeckData, "AllyCountry", "AllyFaction"),
+				"ally_faction_right":   getStringField(match.RightDeckData, "AllyCountry", "AllyFaction"),
+				"card_back_left":       leftCardBack,
+				"card_back_right":      rightCardBack,
+				"starting_hand_left":   match.LeftHandCards,
+				"starting_hand_right":  match.RightHandCards,
+				"deck_left":            match.LeftDeckCards,
+				"deck_right":           match.RightDeckCards,
+				"equipment_left":       equipmentLeft,
+				"equipment_right":      equipmentRight,
+				"is_ai_match":          false,
+				"left_player_name":     match.LeftPlayerName,
+				"left_player_officer":  false,
+				"left_player_tag":      match.LeftPlayerTag,
+				"location_card_left":   firstCard(match.LeftCardsData),
 				"location_card_right":  firstCard(match.RightCardsData),
 				"player_id_left":       match.PlayerLeft,
 				"player_id_right":      match.PlayerRight,
@@ -186,7 +178,6 @@ func GetMatchInfo(c *gin.Context) {
 				"right_player_tag":     match.RightPlayerTag,
 			},
 		},
-
 		"action_player_id": localPlayerID,
 		"action_side":      localSide,
 	}
@@ -249,6 +240,7 @@ func EndMatch(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "encrypted payload too short"})
 		return
 	}
+
 	actionIDSess, data, err := security.DecryptPacket(body.A)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("decrypt error: %v", err)})
@@ -267,66 +259,12 @@ func EndMatch(c *gin.Context) {
 		return
 	}
 
-	_ = valData
 	match.Lock()
 	match.ActionIDSess = actionIDSess
 	match.Unlock()
 
+	_ = valData
 	game.GlobalManager.EndMatchBySurrender(user.ID, "surrender")
-	c.String(http.StatusOK, "OK")
-	return
-
-	winnerSide, _ := valData["winner_side"].(string)
-
-	// 如果是投降，获胜者总是另一方
-	if user.ID == match.PlayerLeft {
-		winnerSide = "right" // 左边投降，右边获胜
-	} else if user.ID == match.PlayerRight {
-		winnerSide = "left" // 右边投降，左边获胜
-	}
-
-	match.Lock()
-	defer match.Unlock()
-
-	match.CurrentActionID++
-	match.CurrentTurn = 1
-	match.ActionIDSess = actionIDSess
-
-	endAction := map[string]interface{}{
-		"action_id":   match.CurrentActionID,
-		"action_type": "ActionEndMatch",
-		"player_id":   user.ID,
-		"action_data": map[string]interface{}{
-			"reason":      "surrender",
-			"winner_side": winnerSide,
-		},
-		"sub_actions": []interface{}{},
-		"turn_number": match.CurrentTurn,
-	}
-
-	encrypted := security.EncryptPacket(match.ActionIDSess, endAction)
-	match.Actions = append(match.Actions, match.CurrentActionID)
-	match.ActionsData[match.CurrentActionID] = encrypted
-	match.Status = "ending"
-	match.WinnerSide = winnerSide
-
-	switch winnerSide {
-	case "left":
-		match.WinnerID = match.PlayerLeft
-	case "right":
-		match.WinnerID = match.PlayerRight
-	default:
-		match.WinnerID = 0
-	}
-
-	match.PlayerStatusLeft = "done"
-	match.PlayerStatusRight = "done"
-
-	go func(id int64) {
-		time.Sleep(10 * time.Second)
-		game.GlobalManager.ActiveMatches.Delete(id)
-	}(match.MatchID)
-
 	c.String(http.StatusOK, "OK")
 }
 
