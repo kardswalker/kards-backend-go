@@ -51,6 +51,13 @@ func firstCard(cards []game.Card) interface{} {
 	return cards[0]
 }
 
+func normalizeCardBack(cardBack string) string {
+	if cardBack == "" {
+		return "cardback_default"
+	}
+	return cardBack
+}
+
 func GetMatchInfo(c *gin.Context) {
 	user := c.MustGet("user").(*models.User)
 
@@ -71,6 +78,25 @@ func GetMatchInfo(c *gin.Context) {
 
 	match.RLock()
 	defer match.RUnlock()
+
+	localSide := "left"
+	localPlayerID := match.PlayerLeft
+	if user.ID == match.PlayerRight {
+		localSide = "right"
+		localPlayerID = match.PlayerRight
+	}
+
+	var leftDeck models.Deck
+	leftCardBack := "cardback_default"
+	if err := database.DB.Select("card_back").First(&leftDeck, "id = ?", match.DeckIDLeft).Error; err == nil {
+		leftCardBack = normalizeCardBack(leftDeck.CardBack)
+	}
+
+	var rightDeck models.Deck
+	rightCardBack := "cardback_default"
+	if err := database.DB.Select("card_back").First(&rightDeck, "id = ?", match.DeckIDRight).Error; err == nil {
+		rightCardBack = normalizeCardBack(rightDeck.CardBack)
+	}
 
 	// 查询左边玩家的装备物品
 	var leftUser models.User
@@ -105,8 +131,8 @@ func GetMatchInfo(c *gin.Context) {
 		"local_subactions": true,
 		"match_and_starting_data": gin.H{
 			"match": gin.H{
-				"action_player_id":    match.PlayerLeft,
-				"action_side":         "left",
+				"action_player_id":    localPlayerID,
+				"action_side":         localSide,
 				"actions":             match.Actions,
 				"actions_url":         fmt.Sprintf("http://%s:%d/matches/v2/%d/actions", config.Host, config.Port, match.MatchID),
 				"current_action_id":   match.CurrentActionID,
@@ -133,8 +159,8 @@ func GetMatchInfo(c *gin.Context) {
 				"ally_faction_left":  getStringField(match.LeftDeckData, "AllyCountry", "AllyFaction"),
 				"ally_faction_right": getStringField(match.RightDeckData, "AllyCountry", "AllyFaction"),
 
-				"card_back_left":  "cardback_1st_tank_regiment",
-				"card_back_right": "cardback_11_infantry",
+				"card_back_left":  leftCardBack,
+				"card_back_right": rightCardBack,
 
 				"starting_hand_left":  match.LeftHandCards,
 				"starting_hand_right": match.RightHandCards,
@@ -161,8 +187,8 @@ func GetMatchInfo(c *gin.Context) {
 			},
 		},
 
-		"action_player_id": match.PlayerRight,
-		"action_side":      "right",
+		"action_player_id": localPlayerID,
+		"action_side":      localSide,
 	}
 
 	c.JSON(http.StatusOK, resp)
@@ -284,11 +310,8 @@ func EndMatch(c *gin.Context) {
 		match.WinnerID = 0
 	}
 
-	if user.ID == match.PlayerLeft {
-		match.PlayerStatusLeft = "done"
-	} else if user.ID == match.PlayerRight {
-		match.PlayerStatusRight = "done"
-	}
+	match.PlayerStatusLeft = "done"
+	match.PlayerStatusRight = "done"
 
 	go func(id int64) {
 		time.Sleep(10 * time.Second)

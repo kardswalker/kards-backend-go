@@ -92,6 +92,18 @@ func (gm *GameManager) CreateMatch(p1, p2 *MatchRequest) {
 	cardsL := gm.CreateMatchCards("left", parsedL)
 	cardsR := gm.CreateMatchCards("right", parsedR)
 
+	leftDeck := append([]Card(nil), cardsL[1:]...)
+	if err := ShuffleDeckCards(leftDeck, "deck_left"); err != nil {
+		log.Printf("failed to shuffle left deck for match %d: %v", newID, err)
+		return
+	}
+
+	rightDeck := append([]Card(nil), cardsR[1:]...)
+	if err := ShuffleDeckCards(rightDeck, "deck_right"); err != nil {
+		log.Printf("failed to shuffle right deck for match %d: %v", newID, err)
+		return
+	}
+
 	match := &Match{
 		MatchID:           newID,
 		Status:            "pending",
@@ -135,22 +147,28 @@ func (gm *GameManager) CreateMatch(p1, p2 *MatchRequest) {
 		RightPlayerTag:  uR.PlayerTag,
 	}
 
-	for i := 0; i < len(cardsL); i++ {
-		if i >= 1 && i <= 4 {
-			cardsL[i].Location = "hand_left"
-			match.LeftHandCards = append(match.LeftHandCards, cardsL[i])
-		} else if i > 4 {
-			match.LeftDeckCards = append(match.LeftDeckCards, cardsL[i])
+	for i := 0; i < len(leftDeck); i++ {
+		if i < 4 {
+			leftDeck[i].Location = "hand_left"
+			leftDeck[i].LocationNumber = i
+			match.LeftHandCards = append(match.LeftHandCards, leftDeck[i])
+			continue
 		}
+		leftDeck[i].Location = "deck_left"
+		leftDeck[i].LocationNumber = len(match.LeftDeckCards)
+		match.LeftDeckCards = append(match.LeftDeckCards, leftDeck[i])
 	}
 
-	for i := 0; i < len(cardsR); i++ {
-		if i >= 1 && i <= 5 {
-			cardsR[i].Location = "hand_right"
-			match.RightHandCards = append(match.RightHandCards, cardsR[i])
-		} else if i > 5 {
-			match.RightDeckCards = append(match.RightDeckCards, cardsR[i])
+	for i := 0; i < len(rightDeck); i++ {
+		if i < 5 {
+			rightDeck[i].Location = "hand_right"
+			rightDeck[i].LocationNumber = i
+			match.RightHandCards = append(match.RightHandCards, rightDeck[i])
+			continue
 		}
+		rightDeck[i].Location = "deck_right"
+		rightDeck[i].LocationNumber = len(match.RightDeckCards)
+		match.RightDeckCards = append(match.RightDeckCards, rightDeck[i])
 	}
 
 	gm.ActiveMatches.Store(newID, match)

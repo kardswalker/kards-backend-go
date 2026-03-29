@@ -3,7 +3,6 @@ package handlers
 import (
 	"kards-backend-go/internal/game"
 	"kards-backend-go/internal/models"
-	"math/rand"
 	"net/http"
 	"strconv"
 
@@ -48,28 +47,19 @@ func HandleMulligan(c *gin.Context) {
 
 	*replacements = make([]game.Card, 0)
 
-	// 构建可抽索引（排除手牌里的卡）
-	availableIdx := make([]int, 0)
-	handCardIDs := make(map[int]bool)
-	for _, h := range *hand {
-		handCardIDs[h.CardID] = true
-	}
-	for idx, d := range *deck {
-		if !handCardIDs[d.CardID] {
-			availableIdx = append(availableIdx, idx)
-		}
-	}
-
 	// 遍历要换掉的卡
 	for _, discardID := range req.DiscardedCardIDs {
 		for i, card := range *hand {
 			if card.CardID == discardID {
-				if len(availableIdx) == 0 {
+				if len(*deck) == 0 {
 					break
 				}
-				randIdxInAvailable := rand.Intn(len(availableIdx))
-				deckIdx := availableIdx[randIdxInAvailable]
-				availableIdx = append(availableIdx[:randIdxInAvailable], availableIdx[randIdxInAvailable+1:]...)
+
+				deckIdx, err := game.CryptoIntn(len(*deck))
+				if err != nil {
+					c.AbortWithStatusJSON(500, gin.H{"error": "failed to generate random replacement"})
+					return
+				}
 
 				newCard := (*deck)[deckIdx]
 
@@ -86,6 +76,12 @@ func HandleMulligan(c *gin.Context) {
 				break
 			}
 		}
+	}
+
+	deckLocation := "deck_" + side
+	if err := game.ShuffleDeckCards(*deck, deckLocation); err != nil {
+		c.AbortWithStatusJSON(500, gin.H{"error": "failed to reshuffle deck"})
+		return
 	}
 
 	// 更新玩家状态
