@@ -21,6 +21,7 @@ type Config struct {
 }
 
 var cfg *Config
+var FirstRun bool
 
 var (
 	Host         string
@@ -78,6 +79,7 @@ func LoadConfig() (*Config, error) {
 		configPath = "config.yaml"
 	}
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
+		FirstRun = true
 		if err := saveYAMLConfig(cfgFromFile); err != nil {
 			return nil, fmt.Errorf("failed to create config.yaml: %w", err)
 		}
@@ -174,6 +176,59 @@ func getEnv(key, defaultValue string) string {
 		return value
 	}
 	return defaultValue
+}
+
+func PromptInitialSetup() error {
+	// 如果已经配置好了关键参数则无需再次引导
+	if !FirstRun && cfg.DatabaseURL != "" && cfg.Ip != "" && cfg.Port != 0 {
+		return nil
+	}
+
+	fmt.Println("首次启动检测到或配置未完成，请配置服务参数")
+	fmt.Print("MySQL URL (user:pass@tcp(host:port)/dbname?charset=utf8mb4&parseTime=True&loc=Local): ")
+	var dbURL string
+	fmt.Scanln(&dbURL)
+	if dbURL == "" {
+		dbURL = defaultDatabaseURL
+	}
+
+	fmt.Print("服务器IP (默认 127.0.0.1): ")
+	var ip string
+	fmt.Scanln(&ip)
+	if ip == "" {
+		ip = defaultIp
+	}
+
+	fmt.Print("服务器端口 (默认 5231): ")
+	var port int
+	_, err := fmt.Scanln(&port)
+	if err != nil || port == 0 {
+		port = defaultPort
+	}
+
+	fmt.Print("WebSocket端口 (默认 5232): ")
+	var wsPort int
+	_, err = fmt.Scanln(&WSPort)
+	if err != nil || wsPort == 0 {
+		wsPort = defaultWSPort
+	}
+
+	cfg.DatabaseURL = dbURL
+	cfg.Ip = ip
+	cfg.Port = port
+	cfg.WSPort = WSPort
+
+	if err := saveYAMLConfig(cfg); err != nil {
+		return err
+	}
+
+	// 更新全局变量
+	Host = cfg.Ip
+	Port = cfg.Port
+	DatabaseURL = cfg.DatabaseURL
+
+	fmt.Println("配置已保存，请重新启动服务器。")
+	return nil
 }
 
 func GetKardsTime() string {

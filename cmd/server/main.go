@@ -17,6 +17,9 @@ import (
 
 func main() {
 	log.Printf("🔧 正在初始化 Kards Server")
+	if err := config.PromptInitialSetup(); err != nil {
+		log.Fatalf("❌ 初始化配置失败: %v", err)
+	}
 	database.InitDB()
 	go game.GlobalManager.StartMatchmaker()
 	go game.GlobalManager.StartWSServer()
