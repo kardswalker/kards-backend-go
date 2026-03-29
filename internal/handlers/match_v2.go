@@ -267,6 +267,15 @@ func EndMatch(c *gin.Context) {
 		return
 	}
 
+	_ = valData
+	match.Lock()
+	match.ActionIDSess = actionIDSess
+	match.Unlock()
+
+	game.GlobalManager.EndMatchBySurrender(user.ID, "surrender")
+	c.String(http.StatusOK, "OK")
+	return
+
 	winnerSide, _ := valData["winner_side"].(string)
 
 	// 如果是投降，获胜者总是另一方

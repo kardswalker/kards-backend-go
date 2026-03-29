@@ -69,11 +69,14 @@ func (gm *GameManager) handleWSConnection(w http.ResponseWriter, r *http.Request
 
 	// 4. 登记客户端
 	gm.OnlineClients.Store(user.ID, conn)
+	gm.SetPlayerOnlineStatus(user.ID, true)
 	log.Printf("🔌 玩家 %d (%s) 已连接 WebSocket，使用的协议: %s", user.ID, user.PlayerName, conn.Subprotocol())
 
 	// 保证断开时清理资源
 	defer func() {
 		gm.OnlineClients.Delete(user.ID)
+		gm.SetPlayerOnlineStatus(user.ID, false)
+		gm.EndMatchBySurrender(user.ID, "surrender")
 		conn.Close()
 		log.Printf("👋 玩家 %d (%s) WebSocket 已断开", user.ID, user.PlayerName)
 	}()
