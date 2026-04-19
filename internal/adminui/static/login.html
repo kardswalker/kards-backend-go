@@ -1,0 +1,294 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Admin Login</title>
+  <style>
+    :root{
+      --bg:#e8eeed;
+      --bg-accent:#dff2ef;
+      --bg-mint:#e0f6f3;
+      --ink:#1b3f44;
+      --muted:#5a7d7d;
+      --nav:#23494c;
+      --primary:#4ea8a2;
+      --primary-deep:#2c5f5f;
+      --gold:#7fbfbf;
+      --danger:#b84035;
+      --panel:rgba(255,255,255,.94);
+      --line:rgba(44,95,95,.12);
+      --shadow:0 24px 54px rgba(24,33,43,.16);
+      --mx:52%;
+      --my:30%;
+      --hero-shift:50%;
+    }
+    @keyframes settleSweep{
+      0%{opacity:.95;transform:translate3d(-3%,0,0) scale(1.03)}
+      60%{opacity:.66;transform:translate3d(3%,0,0) scale(1.01)}
+      100%{opacity:0;transform:translate3d(0,0,0) scale(1)}
+    }
+    @keyframes revealRise{
+      0%{opacity:0;transform:translateY(14px)}
+      100%{opacity:1;transform:translateY(0)}
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      min-height:100vh;
+      display:grid;
+      place-items:center;
+      padding:20px;
+      font-family:"Aptos","Trebuchet MS","Segoe UI",sans-serif;
+      color:var(--ink);
+      background:
+        radial-gradient(circle at var(--mx) var(--my), rgba(224,246,243,.96), transparent 28%),
+        radial-gradient(circle at calc(100% - var(--mx)) calc(82% - (var(--my) / 3)), rgba(127,191,191,.24), transparent 24%),
+        linear-gradient(115deg, #ffffff 0%, #ffffff 46%, var(--bg-mint) 53%, #edf7f6 72%, var(--bg) 100%);
+      background-size:140% 140%,140% 140%,200% 200%;
+      background-position:center center, center center, calc(50% + ((var(--mx) - 50%) / 8)) calc(50% + ((var(--my) - 50%) / 10));
+      transition:background-position .24s ease-out;
+    }
+    body::before{
+      content:"";
+      position:fixed;
+      inset:0;
+      pointer-events:none;
+      background:linear-gradient(115deg, rgba(255,255,255,.10) 0%, rgba(224,246,243,.28) 30%, rgba(127,191,191,.14) 54%, rgba(255,255,255,0) 82%);
+      background-size:220% 220%;
+      animation:settleSweep 1.45s ease-out 1 both;
+    }
+    .shell{
+      width:min(960px,100%);
+      display:grid;
+      grid-template-columns:minmax(280px,1.1fr) minmax(320px,.9fr);
+      background:linear-gradient(180deg, rgba(255,255,255,.90), rgba(248,255,254,.96));
+      border:1px solid var(--line);
+      border-radius:28px;
+      overflow:hidden;
+      box-shadow:var(--shadow);
+      backdrop-filter:blur(10px);
+      animation:revealRise .55s ease-out 1 both;
+    }
+    .hero{
+      padding:34px 30px;
+      background:
+        linear-gradient(115deg, rgba(255,255,255,.24) 0%, rgba(224,246,243,.18) 22%, rgba(44,95,95,.96) 45%, rgba(127,191,191,.74) 70%, rgba(255,255,255,.26) 100%);
+      background-size:320% 320%;
+      background-position:var(--hero-shift) 50%;
+      color:#f4fbff;
+      display:flex;
+      flex-direction:column;
+      justify-content:space-between;
+      gap:28px;
+      transition:background-position .22s ease-out;
+    }
+    .eyebrow{
+      display:inline-flex;
+      width:max-content;
+      padding:7px 12px;
+      border-radius:999px;
+      font-size:12px;
+      letter-spacing:.08em;
+      text-transform:uppercase;
+      font-weight:700;
+      background:rgba(255,255,255,.10);
+      border:1px solid rgba(255,255,255,.14);
+    }
+    h1{margin:0;font-size:38px;line-height:1.02;letter-spacing:-.04em}
+    .subtitle{margin:12px 0 0;color:rgba(244,251,255,.78);line-height:1.65;font-size:15px}
+    .hero-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+    .hero-card{
+      padding:14px;
+      border-radius:18px;
+      background:rgba(255,255,255,.10);
+      border:1px solid rgba(255,255,255,.10);
+      backdrop-filter:blur(8px);
+    }
+    .hero-card strong{display:block;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#9fc5df;margin-bottom:8px}
+    .hero-card span{font-size:15px;line-height:1.5}
+    .panel{padding:28px;display:flex;flex-direction:column;justify-content:center}
+    .topbar{display:flex;justify-content:flex-end;margin-bottom:20px}
+    .lang{display:inline-flex;gap:8px;padding:6px;border-radius:999px;background:rgba(224,246,243,.42);border:1px solid var(--line)}
+    .lang button{border:0;background:transparent;color:var(--muted);padding:8px 12px;border-radius:999px;cursor:pointer;font-weight:700;display:inline-flex;align-items:center;gap:8px}
+    .lang button.active{background:#fff;color:var(--ink);box-shadow:0 8px 20px rgba(24,33,43,.10)}
+    .panel h2{margin:0 0 8px;font-size:30px;letter-spacing:-.03em}
+    .panel p{margin:0 0 22px;color:var(--muted);line-height:1.6}
+    .field{margin-bottom:14px}
+    .field label{display:block;margin-bottom:8px;color:var(--muted);font-size:13px;font-weight:700;letter-spacing:.03em}
+    input{
+      width:100%;
+      min-height:48px;
+      padding:12px 14px;
+      border-radius:14px;
+      border:1px solid rgba(24,33,43,.14);
+      background:#fff;
+      color:var(--ink);
+      font-size:15px;
+      transition:border-color .18s ease, box-shadow .18s ease;
+    }
+    input:focus{outline:none;border-color:rgba(11,116,184,.48);box-shadow:0 0 0 4px rgba(11,116,184,.10)}
+    button.primary{
+      width:100%;
+      margin-top:6px;
+      min-height:48px;
+      border:0;
+      border-radius:999px;
+      background:linear-gradient(135deg, #7fbfbf, #4ea8a2, #2c5f5f);
+      background-size:200% 200%;
+      color:#fff;
+      font-size:15px;
+      font-weight:800;
+      letter-spacing:.02em;
+      cursor:pointer;
+      box-shadow:0 14px 28px rgba(44,95,95,.22);
+      transition:.18s ease;
+      background-position:calc(50% + ((var(--mx) - 50%) / 8)) 50%;
+    }
+    button.primary:hover{transform:translateY(-1px)}
+    .btn-icon{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      gap:10px;
+    }
+    .btn-icon svg{
+      width:16px;
+      height:16px;
+      stroke:currentColor;
+      fill:none;
+      stroke-width:1.9;
+      stroke-linecap:round;
+      stroke-linejoin:round;
+      flex:0 0 auto;
+    }
+    .err{min-height:22px;margin-top:12px;color:var(--danger);font-size:13px}
+    .foot{margin-top:18px;color:var(--muted);font-size:12px;line-height:1.6}
+    @media (max-width: 860px){
+      .shell{grid-template-columns:1fr}
+      .hero{padding:24px 22px}
+      .panel{padding:22px}
+      h1{font-size:32px}
+      .hero-grid{grid-template-columns:1fr}
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <section class="hero">
+      <div>
+        <span class="eyebrow" id="eyebrow">Control Center</span>
+        <h1 id="heroTitle">服务器管理后台</h1>
+        <p class="subtitle" id="heroText">统一查看服务运行状态、在线玩家和对局动态，适合快速处理日常运维与数据维护。</p>
+      </div>
+      <div class="hero-grid">
+        <div class="hero-card">
+          <strong id="heroCard1Title">实时总览</strong>
+          <span id="heroCard1Text">主面板会持续刷新在线人数、进行中对局和服务运行时间。</span>
+        </div>
+        <div class="hero-card">
+          <strong id="heroCard2Title">安全入口</strong>
+          <span id="heroCard2Text">使用管理员密码登录后即可进入后台，不会暴露额外的公开入口。</span>
+        </div>
+      </div>
+    </section>
+    <section class="panel">
+      <div class="topbar">
+        <div class="lang">
+          <button type="button" id="langZh" onclick="setLang('zh')"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16"/><path d="M4 12h16"/><path d="M4 19h16"/></svg><span>中文</span></button>
+          <button type="button" id="langEn" onclick="setLang('en')"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16"/><path d="M4 12h16"/><path d="M4 19h16"/></svg><span>EN</span></button>
+        </div>
+      </div>
+      <h2 id="title">欢迎回来</h2>
+      <p id="intro">输入管理员密码后进入后台控制台。</p>
+      <div class="field">
+        <label for="pwd" id="pwdLabel">管理员密码</label>
+        <input id="pwd" type="password" placeholder="管理员密码" autocomplete="current-password">
+      </div>
+      <button id="btn" class="primary btn-icon" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 16l4-4-4-4"/><path d="M19 12H9"/><path d="M12 19H5V5h7"/></svg><span>登录</span></button>
+      <div id="err" class="err"></div>
+      <div class="foot" id="footText">语言设置会保存在当前浏览器中，刷新页面后也会继续生效。</div>
+    </section>
+  </div>
+  <script>
+    const I18N={
+      zh:{
+        eyebrow:'Control Center',heroTitle:'服务器管理后台',heroText:'统一查看服务运行状态、在线玩家和对局动态，适合快速处理日常运维与数据维护。',
+        heroCard1Title:'实时总览',heroCard1Text:'主面板会持续刷新在线人数、进行中对局和服务运行时间。',
+        heroCard2Title:'安全入口',heroCard2Text:'使用管理员密码登录后即可进入后台，不会暴露额外的公开入口。',
+        title:'欢迎回来',intro:'输入管理员密码后进入后台控制台。',pwdLabel:'管理员密码',placeholder:'管理员密码',login:'登录',
+        fail:'登录失败',invalid_password:'密码错误',invalid_request:'请求无效',network_error:'网络错误',foot:'语言设置会保存在当前浏览器中，刷新页面后也会继续生效。'
+      },
+      en:{
+        eyebrow:'Control Center',heroTitle:'Server Admin Console',heroText:'Watch service health, online players, and live match activity from one focused operational view.',
+        heroCard1Title:'Live Overview',heroCard1Text:'The main dashboard keeps online users, active matches, and uptime refreshed in real time.',
+        heroCard2Title:'Secure Access',heroCard2Text:'Enter the admin password to reach the panel without exposing extra public entry points.',
+        title:'Welcome Back',intro:'Enter the admin password to continue into the control panel.',pwdLabel:'Admin Password',placeholder:'Admin password',login:'Login',
+        fail:'Login failed',invalid_password:'Invalid password',invalid_request:'Invalid request',network_error:'Network error',foot:'Language preference is stored in this browser and will remain after refresh.'
+      }
+    };
+    let lang=localStorage.getItem('admin_lang')||'zh';
+    function tr(k){return (I18N[lang]&&I18N[lang][k])||I18N.en[k]||k;}
+    function apply(){
+      document.getElementById('eyebrow').textContent=tr('eyebrow');
+      document.getElementById('heroTitle').textContent=tr('heroTitle');
+      document.getElementById('heroText').textContent=tr('heroText');
+      document.getElementById('heroCard1Title').textContent=tr('heroCard1Title');
+      document.getElementById('heroCard1Text').textContent=tr('heroCard1Text');
+      document.getElementById('heroCard2Title').textContent=tr('heroCard2Title');
+      document.getElementById('heroCard2Text').textContent=tr('heroCard2Text');
+      document.getElementById('title').textContent=tr('title');
+      document.getElementById('intro').textContent=tr('intro');
+      document.getElementById('pwdLabel').textContent=tr('pwdLabel');
+      document.getElementById('pwd').placeholder=tr('placeholder');
+      document.querySelector('#btn span').textContent=tr('login');
+      document.getElementById('footText').textContent=tr('foot');
+      document.getElementById('langZh').classList.toggle('active',lang==='zh');
+      document.getElementById('langEn').classList.toggle('active',lang==='en');
+    }
+    function setLang(next){lang=next;localStorage.setItem('admin_lang',next);apply();}
+    function localizeError(message){
+      if(message==='invalid password') return tr('invalid_password');
+      if(message==='invalid request') return tr('invalid_request');
+      return message||tr('fail');
+    }
+    apply();
+    const btn=document.getElementById('btn');
+    const pwd=document.getElementById('pwd');
+    const err=document.getElementById('err');
+    let bgFrame=0;
+    function setInteractiveMotion(clientX, clientY){
+      const x=(clientX / window.innerWidth) * 100;
+      const y=(clientY / window.innerHeight) * 100;
+      document.documentElement.style.setProperty('--mx', x.toFixed(2)+'%');
+      document.documentElement.style.setProperty('--my', y.toFixed(2)+'%');
+      document.documentElement.style.setProperty('--hero-shift', (50 + (x - 50) * 0.45).toFixed(2)+'%');
+    }
+    window.addEventListener('mousemove',e=>{
+      if(bgFrame) return;
+      bgFrame=requestAnimationFrame(()=>{
+        setInteractiveMotion(e.clientX,e.clientY);
+        bgFrame=0;
+      });
+    });
+    setTimeout(()=>setInteractiveMotion(window.innerWidth * 0.54, window.innerHeight * 0.30), 80);
+    async function login(){
+      err.textContent='';
+      try{
+        const res=await fetch('/admin/api/login',{
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({password:pwd.value})
+        });
+        if(res.ok){location.href='/admin';return;}
+        const data=await res.json().catch(()=>({error:tr('fail')}));
+        err.textContent=localizeError(data.error);
+      }catch(_){
+        err.textContent=tr('network_error');
+      }
+    }
+    btn.onclick=login;
+    pwd.addEventListener('keydown',e=>{if(e.key==='Enter')login();});
+  </script>
+</body>
+</html>

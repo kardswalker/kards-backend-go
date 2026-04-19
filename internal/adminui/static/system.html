@@ -1,0 +1,47 @@
+<section class="hero">
+  <div class="page-head">
+    <div>
+      <span class="meta-pill" data-i18n="page_system_tag"></span>
+      <h2 data-i18n="nav_system"></h2>
+      <p class="page-subtitle" data-i18n="system_subtitle"></p>
+    </div>
+  </div>
+</section>
+<div class="split">
+  <div class="card">
+    <h3 class="section-title" data-i18n="sys_title"></h3>
+    <p class="section-subtitle" data-i18n="section_table"></p>
+    <div class="surface">
+      <table id="sys" class="dense-table"></table>
+    </div>
+  </div>
+  <div class="card">
+    <h3 class="section-title" data-i18n="memory_trend_title"></h3>
+    <p class="section-subtitle" data-i18n="section_trend"></p>
+    <canvas id="memChart" class="chart"></canvas>
+  </div>
+</div>
+<script>
+const memHistory=[];
+async function refresh(){
+  const r=await fetch('/admin/api/system');
+  if(!r.ok){location.href='/admin/login';return;}
+  const d=await r.json();
+  const rows=[
+    [tr('label_uptime'),d.uptime_text],
+    [tr('label_go_routines'),d.go_routines],
+    [tr('label_cpu_cores'),d.cpu_cores],
+    [tr('label_memory_alloc_mb'),Number(d.memory_alloc_mb).toFixed(2)],
+    [tr('label_memory_heap_inuse_mb'),Number(d.memory_heap_inuse_mb).toFixed(2)],
+    [tr('label_memory_sys_mb'),Number(d.memory_sys_mb).toFixed(2)],
+    [tr('label_gc_count'),d.gc_count]
+  ];
+  document.getElementById('sys').innerHTML=rows.map(x=>'<tr><th>'+x[0]+'</th><td>'+x[1]+'</td></tr>').join('');
+  memHistory.push(Number(d.memory_alloc_mb||0));
+  if(memHistory.length>30)memHistory.shift();
+  drawLine(document.getElementById('memChart'),memHistory,'#c28a22');
+}
+refresh();
+setInterval(refresh,2000);
+window.addEventListener('resize',()=>drawLine(document.getElementById('memChart'),memHistory,'#c28a22'));
+</script>

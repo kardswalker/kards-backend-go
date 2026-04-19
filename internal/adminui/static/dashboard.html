@@ -1,0 +1,52 @@
+<section class="hero">
+  <div class="page-head">
+    <div>
+      <span class="meta-pill" data-i18n="page_main_tag"></span>
+      <h2 data-i18n="nav_main"></h2>
+      <p class="page-subtitle" data-i18n="dashboard_subtitle"></p>
+    </div>
+  </div>
+</section>
+<div class="grid">
+  <div class="card stat-card"><div class="stat-label" data-i18n="kpi_online"></div><div id="kpiOnline" class="kpi">-</div><div class="stat-foot"><span data-i18n="section_overview"></span><span data-i18n="badge_live"></span></div></div>
+  <div class="card stat-card"><div class="stat-label" data-i18n="kpi_matches"></div><div id="kpiMatches" class="kpi">-</div><div class="stat-foot"><span data-i18n="section_overview"></span><span data-i18n="badge_live"></span></div></div>
+  <div class="card stat-card"><div class="stat-label" data-i18n="kpi_uptime"></div><div id="kpiUptime" class="kpi" style="font-size:24px">-</div><div class="stat-foot"><span data-i18n="section_overview"></span><span data-i18n="badge_server"></span></div></div>
+  <div class="card stat-card"><div class="stat-label" data-i18n="kpi_time"></div><div id="kpiTime" class="kpi" style="font-size:18px">-</div><div class="stat-foot"><span data-i18n="section_overview"></span><span data-i18n="badge_utc"></span></div></div>
+</div>
+<div class="grid">
+  <div class="card">
+    <h3 class="section-title" data-i18n="kpi_online"></h3>
+    <p class="section-subtitle" data-i18n="section_trend"></p>
+    <canvas id="chartOnline" class="chart"></canvas>
+  </div>
+  <div class="card">
+    <h3 class="section-title" data-i18n="kpi_matches"></h3>
+    <p class="section-subtitle" data-i18n="section_trend"></p>
+    <canvas id="chartMatches" class="chart"></canvas>
+  </div>
+</div>
+<script>
+const onlineHistory=[];
+const matchHistory=[];
+async function refresh(){
+  const r=await fetch('/admin/api/overview');
+  if(!r.ok){location.href='/admin/login';return;}
+  const d=await r.json();
+  document.getElementById('kpiOnline').textContent=d.online_users;
+  document.getElementById('kpiMatches').textContent=d.active_matches;
+  document.getElementById('kpiUptime').textContent=d.uptime_text;
+  document.getElementById('kpiTime').textContent=d.server_time;
+  onlineHistory.push(Number(d.online_users||0));
+  matchHistory.push(Number(d.active_matches||0));
+  if(onlineHistory.length>30)onlineHistory.shift();
+  if(matchHistory.length>30)matchHistory.shift();
+  drawLine(document.getElementById('chartOnline'),onlineHistory,'#2563eb');
+  drawLine(document.getElementById('chartMatches'),matchHistory,'#16a34a');
+}
+refresh();
+setInterval(refresh,2000);
+window.addEventListener('resize',()=>{
+  drawLine(document.getElementById('chartOnline'),onlineHistory,'#2563eb');
+  drawLine(document.getElementById('chartMatches'),matchHistory,'#16a34a');
+});
+</script>

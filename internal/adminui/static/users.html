@@ -1,0 +1,53 @@
+<section class="hero">
+  <div class="page-head">
+    <div>
+      <span class="meta-pill" data-i18n="page_users_tag"></span>
+      <h2 data-i18n="nav_users"></h2>
+      <p class="page-subtitle" data-i18n="users_subtitle"></p>
+    </div>
+    <div id="cnt" class="count-badge"></div>
+  </div>
+</section>
+<div class="split">
+  <div class="card">
+    <h3 class="section-title" data-i18n="kpi_online"></h3>
+    <p class="section-subtitle" data-i18n="section_trend"></p>
+    <canvas id="onlineChart" class="chart"></canvas>
+  </div>
+  <div class="card">
+    <h3 class="section-title" data-i18n="users_title"></h3>
+    <p class="section-subtitle" data-i18n="section_table"></p>
+    <div class="table-shell">
+      <table>
+        <thead>
+          <tr>
+            <th data-i18n="col_id"></th>
+            <th data-i18n="col_username"></th>
+            <th data-i18n="col_player_name"></th>
+            <th data-i18n="col_tag"></th>
+            <th data-i18n="col_status"></th>
+          </tr>
+        </thead>
+        <tbody id="tb"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+<script>
+const onlineTrend=[];
+async function refresh(){
+  const r=await fetch('/admin/api/users');
+  if(!r.ok){location.href='/admin/login';return;}
+  const d=await r.json();
+  document.getElementById('cnt').textContent=tr('kpi_online')+': '+d.count;
+  onlineTrend.push(Number(d.count||0));
+  if(onlineTrend.length>30)onlineTrend.shift();
+  drawLine(document.getElementById('onlineChart'),onlineTrend,'#0ea5e9');
+  const users=d.users||[];
+  document.getElementById('tb').innerHTML=users.length?users.map(u=>'<tr><td>'+escapeHTML(u.id)+'</td><td>'+escapeHTML(u.username)+'</td><td>'+escapeHTML(u.player_name)+'</td><td>'+escapeHTML(u.player_tag)+'</td><td>'+statusPill(u.is_online?tr('status_online'):tr('status_offline'),u.is_online?'online':'offline')+'</td></tr>').join(''):emptyRow(5,tr('empty_users'));
+}
+window.pageRefreshText=()=>refresh();
+refresh();
+setInterval(refresh,2000);
+window.addEventListener('resize',()=>drawLine(document.getElementById('onlineChart'),onlineTrend,'#0ea5e9'));
+</script>

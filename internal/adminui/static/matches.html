@@ -1,0 +1,58 @@
+<section class="hero">
+  <div class="page-head">
+    <div>
+      <span class="meta-pill" data-i18n="page_matches_tag"></span>
+      <h2 data-i18n="nav_matches"></h2>
+      <p class="page-subtitle" data-i18n="matches_subtitle"></p>
+    </div>
+    <div id="cnt" class="count-badge"></div>
+  </div>
+</section>
+<div class="split">
+  <div class="card">
+    <h3 class="section-title" data-i18n="kpi_matches"></h3>
+    <p class="section-subtitle" data-i18n="section_trend"></p>
+    <canvas id="matchChart" class="chart"></canvas>
+  </div>
+  <div class="card">
+    <h3 class="section-title" data-i18n="matches_title"></h3>
+    <p class="section-subtitle" data-i18n="section_table"></p>
+    <div class="table-shell">
+      <table>
+        <thead>
+          <tr>
+            <th data-i18n="col_id"></th>
+            <th data-i18n="col_status"></th>
+            <th data-i18n="col_type"></th>
+            <th data-i18n="col_turn"></th>
+            <th data-i18n="col_action_id"></th>
+            <th data-i18n="col_left"></th>
+            <th data-i18n="col_right"></th>
+            <th data-i18n="col_left_state"></th>
+            <th data-i18n="col_right_state"></th>
+            <th data-i18n="col_bot"></th>
+          </tr>
+        </thead>
+        <tbody id="tb"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+<script>
+const runningTrend=[];
+async function refresh(){
+  const r=await fetch('/admin/api/matches');
+  if(!r.ok){location.href='/admin/login';return;}
+  const d=await r.json();
+  document.getElementById('cnt').textContent=tr('kpi_matches')+': '+d.count;
+  runningTrend.push(Number(d.count||0));
+  if(runningTrend.length>30)runningTrend.shift();
+  drawLine(document.getElementById('matchChart'),runningTrend,'#f97316');
+  const matches=d.matches||[];
+  document.getElementById('tb').innerHTML=matches.length?matches.map(m=>'<tr><td>'+escapeHTML(m.match_id)+'</td><td>'+statusPill(localizeMatchStatus(m.status),m.status==="running"?"active":"idle")+'</td><td>'+escapeHTML(m.match_type)+'</td><td>'+escapeHTML(m.current_turn)+'</td><td>'+escapeHTML(m.current_action_id)+'</td><td>'+escapeHTML(m.player_left)+'</td><td>'+escapeHTML(m.player_right)+'</td><td>'+statusPill(localizeConnectionState(m.player_status_left),m.player_status_left==="connected"?"online":"offline",true)+'</td><td>'+statusPill(localizeConnectionState(m.player_status_right),m.player_status_right==="connected"?"online":"offline",true)+'</td><td>'+statusPill(m.bot_enabled?tr('mode_bot'):tr('mode_pvp'),m.bot_enabled?'bot':'active',true)+'</td></tr>').join(''):emptyRow(10,tr('empty_matches'));
+}
+window.pageRefreshText=()=>refresh();
+refresh();
+setInterval(refresh,2000);
+window.addEventListener('resize',()=>drawLine(document.getElementById('matchChart'),runningTrend,'#f97316'));
+</script>

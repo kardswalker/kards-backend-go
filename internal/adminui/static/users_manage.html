@@ -1,0 +1,229 @@
+<section class="hero">
+  <div class="page-head">
+    <div>
+      <span class="meta-pill" data-i18n="page_users_manage_tag"></span>
+      <h2 data-i18n="nav_users_manage"></h2>
+      <p class="page-subtitle" data-i18n="users_manage_subtitle"></p>
+    </div>
+  </div>
+</section>
+<style>
+  .users-manage-table{
+    min-width:1160px;
+  }
+  .users-manage-table th,
+  .users-manage-table td{
+    padding:10px 12px;
+    vertical-align:middle;
+  }
+  .users-manage-table td:first-child,
+  .users-manage-table td:nth-child(2){
+    white-space:nowrap;
+  }
+  .users-manage-input,
+  .users-manage-select{
+    min-height:34px;
+    padding:6px 10px;
+    border-radius:10px;
+    font-size:13px;
+  }
+  .users-manage-name{
+    width:180px;
+  }
+  .users-manage-num{
+    width:82px;
+    text-align:right;
+  }
+  .users-manage-select{
+    width:78px;
+  }
+  .users-manage-actions{
+    display:flex;
+    gap:8px;
+    align-items:center;
+    flex-wrap:wrap;
+    white-space:nowrap;
+  }
+  .users-manage-actions .btn{
+    min-height:34px;
+    padding:7px 12px;
+    font-size:13px;
+    box-shadow:0 8px 18px rgba(44,95,95,.14);
+  }
+  .users-manage-pager{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    flex-wrap:wrap;
+    margin-top:14px;
+  }
+  .users-manage-pager .compact-note{
+    font-size:13px;
+  }
+  .users-manage-pager-actions{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    flex-wrap:wrap;
+  }
+  .users-manage-toolbar-input{
+    width:120px;
+  }
+  @media (max-width: 900px){
+    .users-manage-name{width:160px}
+    .users-manage-pager{
+      align-items:stretch;
+    }
+    .users-manage-pager-actions{
+      width:100%;
+      justify-content:space-between;
+    }
+  }
+</style>
+<div class="card">
+  <div class="toolbar">
+    <div class="inline-form">
+      <label class="muted" for="limit" data-i18n="label_limit"></label>
+      <select id="limit" class="users-manage-toolbar-input users-manage-select">
+        <option value="25">25</option>
+        <option value="50" selected>50</option>
+        <option value="100">100</option>
+        <option value="200">200</option>
+      </select>
+      <label class="muted" for="page" data-i18n="label_page"></label>
+      <input id="page" class="users-manage-toolbar-input" type="number" value="1" min="1">
+    </div>
+    <button class="btn btn-icon" id="reload" type="button"><span class="btn-label" data-i18n="btn_reload"></span></button>
+  </div>
+  <div class="table-shell">
+    <table class="users-manage-table">
+      <thead>
+        <tr>
+          <th data-i18n="col_id"></th>
+          <th data-i18n="col_username"></th>
+          <th data-i18n="col_player_name"></th>
+          <th data-i18n="col_tag"></th>
+          <th data-i18n="col_gold"></th>
+          <th data-i18n="col_diamonds"></th>
+          <th data-i18n="col_season_wins"></th>
+          <th data-i18n="col_online"></th>
+          <th data-i18n="col_actions"></th>
+        </tr>
+      </thead>
+      <tbody id="tb"></tbody>
+    </table>
+  </div>
+  <div class="users-manage-pager">
+    <div id="pagerStatus" class="compact-note"></div>
+    <div class="users-manage-pager-actions">
+      <button class="btn subtle btn-icon" id="firstPage" type="button"><span class="btn-label" data-i18n="btn_first"></span></button>
+      <button class="btn subtle btn-icon" id="prevPage" type="button"><span class="btn-label" data-i18n="btn_prev"></span></button>
+      <button class="btn subtle btn-icon" id="nextPage" type="button"><span class="btn-label" data-i18n="btn_next"></span></button>
+      <button class="btn subtle btn-icon" id="lastPage" type="button"><span class="btn-label" data-i18n="btn_last"></span></button>
+    </div>
+  </div>
+</div>
+<script>
+const ICONS={
+  reload:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>',
+  save:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.2 4.2L19 7"/></svg>',
+  delete:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M6 7l1 13h10l1-13"/></svg>',
+  first:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 6 5 12l6 6"/><path d="M19 6 13 12l6 6"/><path d="M5 6v12"/></svg>',
+  prev:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>',
+  next:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>',
+  last:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m13 6 6 6-6 6"/><path d="m5 6 6 6-6 6"/><path d="M19 6v12"/></svg>'
+};
+function iconButton(labelKey, iconKey, variant, handler){
+  return '<button class="btn '+(variant||'')+' btn-icon" type="button" onclick="'+handler+'">'+ICONS[iconKey]+'<span>'+tr(labelKey)+'</span></button>';
+}
+function renderPager(data){
+  const page=Number(data.page||1);
+  const totalPages=Math.max(Number(data.total_pages||1),1);
+  const total=Number(data.total||0);
+  document.getElementById('page').value=page;
+  document.getElementById('page').max=String(totalPages);
+  const status=document.getElementById('pagerStatus');
+  status.dataset.page=String(page);
+  status.dataset.totalPages=String(totalPages);
+  status.dataset.totalCount=String(total);
+  status.textContent=trf('pagination_status',{page:page,total:totalPages,count:total});
+  document.getElementById('firstPage').disabled=page<=1;
+  document.getElementById('prevPage').disabled=page<=1;
+  document.getElementById('nextPage').disabled=page>=totalPages;
+  document.getElementById('lastPage').disabled=page>=totalPages;
+}
+async function load(){
+  const limit=document.getElementById('limit').value||50;
+  const page=document.getElementById('page').value||1;
+  const r=await fetch('/admin/api/users/all?limit='+encodeURIComponent(limit)+'&page='+encodeURIComponent(page));
+  if(!r.ok){location.href='/admin/login';return;}
+  const d=await r.json();
+  const users=d.users||[];
+  renderPager(d);
+  document.getElementById('tb').innerHTML=users.length?users.map(u=>'<tr data-id="'+u.id+'"><td>'+escapeHTML(u.id)+'</td><td>'+escapeHTML(u.username)+'</td><td><input class="users-manage-input users-manage-name" data-k="player_name" value="'+escapeHTML(u.player_name||'')+'"></td><td><input class="users-manage-input users-manage-num" data-k="player_tag" type="number" value="'+escapeHTML(u.player_tag)+'"></td><td><input class="users-manage-input users-manage-num" data-k="gold" type="number" value="'+escapeHTML(u.gold)+'"></td><td><input class="users-manage-input users-manage-num" data-k="diamonds" type="number" value="'+escapeHTML(u.diamonds)+'"></td><td><input class="users-manage-input users-manage-num" data-k="season_wins" type="number" value="'+escapeHTML(u.season_wins)+'"></td><td><select class="users-manage-select" data-k="is_online"><option value="true"'+(u.is_online?' selected':'')+'>'+tr('bool_true')+'</option><option value="false"'+(!u.is_online?' selected':'')+'>'+tr('bool_false')+'</option></select></td><td><div class="users-manage-actions">'+iconButton('btn_save','save','',`saveRow(${u.id},this)`) + iconButton('btn_delete','delete','warn',`deleteRow(${u.id})`)+'</div></td></tr>').join(''):emptyRow(9,tr('empty_user_rows'));
+}
+async function saveRow(id,btn){
+  const trEl=btn.closest('tr');
+  const payload={};
+  trEl.querySelectorAll('[data-k]').forEach(el=>{const k=el.dataset.k;if(k==='player_name')payload[k]=el.value;else if(k==='is_online')payload[k]=el.value==='true';else payload[k]=Number(el.value||0);});
+  const r=await fetch('/admin/api/users/'+id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+  if(!r.ok){alert(tr('msg_save_failed'));return;}
+  btn.textContent=tr('msg_saved');
+  setTimeout(()=>btn.textContent=tr('btn_save'),800);
+}
+async function deleteRow(id){
+  if(!confirm(tr('confirm_delete_user')+' #'+id+' ?'))return;
+  const r=await fetch('/admin/api/users/'+id,{method:'DELETE'});
+  if(!r.ok){alert(tr('msg_delete_failed'));return;}
+  load();
+}
+function stepPage(delta){
+  const pageInput=document.getElementById('page');
+  pageInput.value=Math.max(1, Number(pageInput.value||1)+delta);
+  load();
+}
+function jumpPage(target){
+  document.getElementById('page').value=Math.max(1, Number(target||1));
+  load();
+}
+document.getElementById('reload').innerHTML=ICONS.reload+'<span data-i18n="btn_reload"></span>';
+document.getElementById('firstPage').innerHTML=ICONS.first+'<span data-i18n="btn_first"></span>';
+document.getElementById('prevPage').innerHTML=ICONS.prev+'<span data-i18n="btn_prev"></span>';
+document.getElementById('nextPage').innerHTML=ICONS.next+'<span data-i18n="btn_next"></span>';
+document.getElementById('lastPage').innerHTML=ICONS.last+'<span data-i18n="btn_last"></span>';
+document.getElementById('reload').onclick=()=>{document.getElementById('page').value=1;load();};
+document.getElementById('firstPage').onclick=()=>jumpPage(1);
+document.getElementById('prevPage').onclick=()=>stepPage(-1);
+document.getElementById('nextPage').onclick=()=>stepPage(1);
+document.getElementById('lastPage').onclick=()=>{
+  const max=Number(document.getElementById('page').max||1);
+  jumpPage(max);
+};
+document.getElementById('page').addEventListener('keydown',e=>{if(e.key==='Enter')load();});
+document.getElementById('limit').addEventListener('change',()=>{document.getElementById('page').value=1;load();});
+window.pageRefreshText=()=>{
+  const reload=document.getElementById('reload');
+  const first=document.getElementById('firstPage');
+  const prev=document.getElementById('prevPage');
+  const next=document.getElementById('nextPage');
+  const last=document.getElementById('lastPage');
+  if(reload) reload.innerHTML=ICONS.reload+'<span>'+tr('btn_reload')+'</span>';
+  if(first) first.innerHTML=ICONS.first+'<span>'+tr('btn_first')+'</span>';
+  if(prev) prev.innerHTML=ICONS.prev+'<span>'+tr('btn_prev')+'</span>';
+  if(next) next.innerHTML=ICONS.next+'<span>'+tr('btn_next')+'</span>';
+  if(last) last.innerHTML=ICONS.last+'<span>'+tr('btn_last')+'</span>';
+  document.querySelectorAll('button[onclick^="saveRow("]').forEach(b=>b.innerHTML=ICONS.save+'<span>'+tr('btn_save')+'</span>');
+  document.querySelectorAll('button[onclick^="deleteRow("]').forEach(b=>b.innerHTML=ICONS.delete+'<span>'+tr('btn_delete')+'</span>');
+  document.querySelectorAll('select[data-k="is_online"]').forEach(sel=>{
+    const options=sel.querySelectorAll('option');
+    if(options[0]) options[0].textContent=tr('bool_true');
+    if(options[1]) options[1].textContent=tr('bool_false');
+  });
+  const status=document.getElementById('pagerStatus');
+  if(status && status.dataset.page){
+    status.textContent=trf('pagination_status',{page:status.dataset.page,total:status.dataset.totalPages,count:status.dataset.totalCount});
+  }
+};
+load();
+</script>
