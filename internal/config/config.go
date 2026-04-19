@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
+	"sync"
 	"time"
 
 	"gopkg.in/yaml.v3"
@@ -14,7 +16,9 @@ type Config struct {
 	Port          int    `yaml:"port"`
 	Ip            string `yaml:"ip"`
 	WSPort        int    `yaml:"wsport"`
+	DatabaseType  string `yaml:"database_type"`
 	DatabaseURL   string `yaml:"database_url"`
+	DatabasePath  string `yaml:"database_path"`
 	JWTKey        string `yaml:"jwt_key"`
 	JWTAlgorithm  string `yaml:"jwt_algorithm"`
 	JWTExpiry     string `yaml:"jwt_expiry"`
@@ -23,12 +27,15 @@ type Config struct {
 
 var cfg *Config
 var FirstRun bool
+var configMu sync.Mutex
 
 var (
 	Host          string
 	Port          int
 	WSPort        int
+	DatabaseType  string
 	DatabaseURL   string
+	DatabasePath  string
 	JWTKey        []byte
 	JWTAlgorithm  string
 	JWTExpiry     time.Duration
@@ -39,7 +46,9 @@ const (
 	defaultPort          = 5231
 	defaultIp            = "127.0.0.1"
 	defaultWSPort        = 5232
+	defaultDatabaseType  = "mysql"
 	defaultDatabaseURL   = "root:1234567890@tcp(127.0.0.1:3306)/users?charset=utf8mb4&parseTime=True&loc=Local"
+	defaultDatabasePath  = "data/kards.db"
 	defaultJWTKey        = "CometKards-is-a-help-much-kards-players-that-can't-find-gameuser-or-baned"
 	defaultJWTAlgorithm  = "HS256"
 	defaultJWTExpiry     = "24h"
@@ -56,7 +65,9 @@ func init() {
 	Host = cfg.Ip
 	Port = cfg.Port
 	WSPort = cfg.WSPort
+	DatabaseType = cfg.DatabaseType
 	DatabaseURL = cfg.DatabaseURL
+	DatabasePath = cfg.DatabasePath
 	JWTKey = []byte(cfg.JWTKey)
 	JWTAlgorithm = cfg.JWTAlgorithm
 	AdminPassword = cfg.AdminPassword
@@ -128,6 +139,17 @@ func saveYAMLConfig(cfg *Config) error {
 	return os.WriteFile(configPath, data, 0644)
 }
 
+func NormalizeDatabaseType(v string) string {
+	switch strings.ToLower(strings.TrimSpace(v)) {
+	case "", "mysql":
+		return "mysql"
+	case "sqlite", "gorml":
+		return "sqlite"
+	default:
+		return ""
+	}
+}
+
 func applyEnvOverrides(cfg *Config) {
 	if v := getEnv("PORT", ""); v != "" {
 		if i, err := strconv.Atoi(v); err == nil {
@@ -142,8 +164,14 @@ func applyEnvOverrides(cfg *Config) {
 			cfg.WSPort = i
 		}
 	}
+	if v := getEnv("DB_TYPE", ""); v != "" {
+		cfg.DatabaseType = v
+	}
 	if v := getEnv("DB_URL", ""); v != "" {
 		cfg.DatabaseURL = v
+	}
+	if v := getEnv("DB_PATH", ""); v != "" {
+		cfg.DatabasePath = v
 	}
 	if v := getEnv("JWT_SECRET", ""); v != "" {
 		cfg.JWTKey = v
@@ -169,8 +197,15 @@ func applyDefaults(cfg *Config) {
 	if cfg.WSPort == 0 {
 		cfg.WSPort = defaultWSPort
 	}
-	if cfg.DatabaseURL == "" {
+	cfg.DatabaseType = NormalizeDatabaseType(cfg.DatabaseType)
+	if cfg.DatabaseType == "" {
+		cfg.DatabaseType = defaultDatabaseType
+	}
+	if cfg.DatabaseType == "mysql" && cfg.DatabaseURL == "" {
 		cfg.DatabaseURL = defaultDatabaseURL
+	}
+	if cfg.DatabasePath == "" {
+		cfg.DatabasePath = defaultDatabasePath
 	}
 	if cfg.JWTKey == "" {
 		cfg.JWTKey = defaultJWTKey
@@ -194,16 +229,34 @@ func getEnv(key, defaultValue string) string {
 }
 
 func PromptInitialSetup() error {
-	if !FirstRun && cfg.DatabaseURL != "" && cfg.Ip != "" && cfg.Port != 0 {
+	if !FirstRun && cfg.DatabaseType != "" && cfg.Ip != "" && cfg.Port != 0 {
 		return nil
 	}
 
 	fmt.Println("First-time setup detected. Please configure server parameters.")
-	fmt.Print("MySQL URL (user:pass@tcp(host:port)/dbname?charset=utf8mb4&parseTime=True&loc=Local): ")
-	var dbURL string
-	fmt.Scanln(&dbURL)
-	if dbURL == "" {
-		dbURL = defaultDatabaseURL
+	fmt.Print("Database type [mysql/sqlite] (default mysql): ")
+	var dbType string
+	fmt.Scanln(&dbType)
+	dbType = NormalizeDatabaseType(dbType)
+	if dbType == "" {
+		dbType = defaultDatabaseType
+	}
+
+	dbURL := cfg.DatabaseURL
+	dbPath := cfg.DatabasePath
+	if dbType == "sqlite" {
+		dbURL = ""
+		fmt.Print("SQLite path (default data/kards.db): ")
+		fmt.Scanln(&dbPath)
+		if dbPath == "" {
+			dbPath = defaultDatabasePath
+		}
+	} else {
+		fmt.Print("MySQL URL (user:pass@tcp(host:port)/dbname?charset=utf8mb4&parseTime=True&loc=Local): ")
+		fmt.Scanln(&dbURL)
+		if dbURL == "" {
+			dbURL = defaultDatabaseURL
+		}
 	}
 
 	fmt.Print("Server IP (default 127.0.0.1): ")
@@ -227,7 +280,9 @@ func PromptInitialSetup() error {
 		wsPort = defaultWSPort
 	}
 
+	cfg.DatabaseType = dbType
 	cfg.DatabaseURL = dbURL
+	cfg.DatabasePath = dbPath
 	cfg.Ip = ip
 	cfg.Port = port
 	cfg.WSPort = wsPort
@@ -242,11 +297,59 @@ func PromptInitialSetup() error {
 	Host = cfg.Ip
 	Port = cfg.Port
 	WSPort = cfg.WSPort
+	DatabaseType = cfg.DatabaseType
 	DatabaseURL = cfg.DatabaseURL
+	DatabasePath = cfg.DatabasePath
 	AdminPassword = cfg.AdminPassword
 
 	fmt.Println("Configuration saved. Please restart the server.")
 	return nil
+}
+
+func GetConfigSnapshot() Config {
+	configMu.Lock()
+	defer configMu.Unlock()
+	return *cfg
+}
+
+func UpdateDatabaseSettings(dbType, dbURL, dbPath string) (*Config, error) {
+	configMu.Lock()
+	defer configMu.Unlock()
+
+	normalized := NormalizeDatabaseType(dbType)
+	if normalized == "" {
+		return nil, fmt.Errorf("invalid database_type: %s", dbType)
+	}
+	if normalized == "mysql" {
+		dbURL = strings.TrimSpace(dbURL)
+		if dbURL == "" {
+			return nil, fmt.Errorf("database_url is required for mysql")
+		}
+		if dbPath == "" {
+			dbPath = cfg.DatabasePath
+		}
+	} else {
+		dbURL = ""
+		dbPath = strings.TrimSpace(dbPath)
+		if dbPath == "" {
+			return nil, fmt.Errorf("database_path is required for sqlite")
+		}
+	}
+
+	cfg.DatabaseType = normalized
+	cfg.DatabaseURL = dbURL
+	cfg.DatabasePath = dbPath
+
+	if err := saveYAMLConfig(cfg); err != nil {
+		return nil, err
+	}
+
+	DatabaseType = cfg.DatabaseType
+	DatabaseURL = cfg.DatabaseURL
+	DatabasePath = cfg.DatabasePath
+
+	snapshot := *cfg
+	return &snapshot, nil
 }
 
 func GetKardsTime() string {

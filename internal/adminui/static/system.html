@@ -7,15 +7,32 @@
     </div>
   </div>
 </section>
+<style>
+  .system-panel{
+    min-height:356px;
+  }
+  .system-panel .surface,
+  .system-panel .chart{
+    margin-top:10px;
+  }
+  .system-panel .surface{
+    background:rgba(255,255,255,.95);
+  }
+  .system-panel #sys th,
+  .system-panel #sys td{
+    padding-top:12px;
+    padding-bottom:12px;
+  }
+</style>
 <div class="split">
-  <div class="card">
+  <div class="card system-panel">
     <h3 class="section-title" data-i18n="sys_title"></h3>
     <p class="section-subtitle" data-i18n="section_table"></p>
     <div class="surface">
       <table id="sys" class="dense-table"></table>
     </div>
   </div>
-  <div class="card">
+  <div class="card system-panel">
     <h3 class="section-title" data-i18n="memory_trend_title"></h3>
     <p class="section-subtitle" data-i18n="section_trend"></p>
     <canvas id="memChart" class="chart"></canvas>
@@ -39,9 +56,9 @@ async function refresh(){
   document.getElementById('sys').innerHTML=rows.map(x=>'<tr><th>'+x[0]+'</th><td>'+x[1]+'</td></tr>').join('');
   memHistory.push(Number(d.memory_alloc_mb||0));
   if(memHistory.length>30)memHistory.shift();
-  drawLine(document.getElementById('memChart'),memHistory,'#c28a22');
+  drawLine(document.getElementById('memChart'),memHistory,{stroke:'#8b7a4c',fill:'rgba(139,122,76,.12)',dot:'#8b7a4c'});
 }
 refresh();
 setInterval(refresh,2000);
-window.addEventListener('resize',()=>drawLine(document.getElementById('memChart'),memHistory,'#c28a22'));
+window.addEventListener('resize',()=>drawLine(document.getElementById('memChart'),memHistory,{stroke:'#8b7a4c',fill:'rgba(139,122,76,.12)',dot:'#8b7a4c'}));
 </script>

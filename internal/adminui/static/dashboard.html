@@ -7,19 +7,56 @@
     </div>
   </div>
 </section>
-<div class="grid">
-  <div class="card stat-card"><div class="stat-label" data-i18n="kpi_online"></div><div id="kpiOnline" class="kpi">-</div><div class="stat-foot"><span data-i18n="section_overview"></span><span data-i18n="badge_live"></span></div></div>
-  <div class="card stat-card"><div class="stat-label" data-i18n="kpi_matches"></div><div id="kpiMatches" class="kpi">-</div><div class="stat-foot"><span data-i18n="section_overview"></span><span data-i18n="badge_live"></span></div></div>
-  <div class="card stat-card"><div class="stat-label" data-i18n="kpi_uptime"></div><div id="kpiUptime" class="kpi" style="font-size:24px">-</div><div class="stat-foot"><span data-i18n="section_overview"></span><span data-i18n="badge_server"></span></div></div>
-  <div class="card stat-card"><div class="stat-label" data-i18n="kpi_time"></div><div id="kpiTime" class="kpi" style="font-size:18px">-</div><div class="stat-foot"><span data-i18n="section_overview"></span><span data-i18n="badge_utc"></span></div></div>
+<style>
+  .dashboard-grid{
+    margin-bottom:16px;
+  }
+  .dashboard-grid:last-of-type{
+    margin-bottom:0;
+  }
+  .dashboard-chart-card{
+    min-height:356px;
+  }
+  .dashboard-chart-card .chart{
+    margin-top:10px;
+  }
+  .dashboard-grid .stat-card{
+    padding-bottom:16px;
+  }
+  .dashboard-grid .stat-label{
+    margin-bottom:14px;
+  }
+  .dashboard-kpi{
+    font-size:36px;
+    min-height:44px;
+    display:flex;
+    align-items:flex-end;
+  }
+  .dashboard-kpi-small{
+    font-size:23px !important;
+    line-height:1.2;
+    min-height:58px;
+    display:flex;
+    align-items:flex-end;
+  }
+  .dashboard-grid .stat-foot{
+    margin-top:auto;
+    padding-top:14px;
+  }
+</style>
+<div class="grid dashboard-grid">
+  <div class="card stat-card"><div class="stat-label" data-i18n="kpi_online"></div><div id="kpiOnline" class="kpi dashboard-kpi numeric">-</div><div class="stat-foot"><span data-i18n="section_overview"></span><span data-i18n="badge_live"></span></div></div>
+  <div class="card stat-card"><div class="stat-label" data-i18n="kpi_matches"></div><div id="kpiMatches" class="kpi dashboard-kpi numeric">-</div><div class="stat-foot"><span data-i18n="section_overview"></span><span data-i18n="badge_live"></span></div></div>
+  <div class="card stat-card"><div class="stat-label" data-i18n="kpi_uptime"></div><div id="kpiUptime" class="kpi dashboard-kpi-small numeric">-</div><div class="stat-foot"><span data-i18n="section_overview"></span><span data-i18n="badge_server"></span></div></div>
+  <div class="card stat-card"><div class="stat-label" data-i18n="kpi_time"></div><div id="kpiTime" class="kpi dashboard-kpi-small numeric">-</div><div class="stat-foot"><span data-i18n="section_overview"></span><span data-i18n="badge_utc"></span></div></div>
 </div>
-<div class="grid">
-  <div class="card">
+<div class="grid dashboard-grid">
+  <div class="card dashboard-chart-card">
     <h3 class="section-title" data-i18n="kpi_online"></h3>
     <p class="section-subtitle" data-i18n="section_trend"></p>
     <canvas id="chartOnline" class="chart"></canvas>
   </div>
-  <div class="card">
+  <div class="card dashboard-chart-card">
     <h3 class="section-title" data-i18n="kpi_matches"></h3>
     <p class="section-subtitle" data-i18n="section_trend"></p>
     <canvas id="chartMatches" class="chart"></canvas>
@@ -40,13 +77,13 @@ async function refresh(){
   matchHistory.push(Number(d.active_matches||0));
   if(onlineHistory.length>30)onlineHistory.shift();
   if(matchHistory.length>30)matchHistory.shift();
-  drawLine(document.getElementById('chartOnline'),onlineHistory,'#2563eb');
-  drawLine(document.getElementById('chartMatches'),matchHistory,'#16a34a');
+  drawLine(document.getElementById('chartOnline'),onlineHistory,{stroke:'#2f6f72',fill:'rgba(47,111,114,.12)',dot:'#2f6f72'});
+  drawLine(document.getElementById('chartMatches'),matchHistory,{stroke:'#5a8f78',fill:'rgba(90,143,120,.12)',dot:'#5a8f78'});
 }
 refresh();
 setInterval(refresh,2000);
 window.addEventListener('resize',()=>{
-  drawLine(document.getElementById('chartOnline'),onlineHistory,'#2563eb');
-  drawLine(document.getElementById('chartMatches'),matchHistory,'#16a34a');
+  drawLine(document.getElementById('chartOnline'),onlineHistory,{stroke:'#2f6f72',fill:'rgba(47,111,114,.12)',dot:'#2f6f72'});
+  drawLine(document.getElementById('chartMatches'),matchHistory,{stroke:'#5a8f78',fill:'rgba(90,143,120,.12)',dot:'#5a8f78'});
 });
 </script>

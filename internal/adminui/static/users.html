@@ -8,13 +8,25 @@
     <div id="cnt" class="count-badge"></div>
   </div>
 </section>
+<style>
+  .users-panel{
+    min-height:356px;
+  }
+  .users-panel .chart,
+  .users-panel .table-shell{
+    margin-top:10px;
+  }
+  .users-panel .table-shell{
+    background:rgba(255,255,255,.95);
+  }
+</style>
 <div class="split">
-  <div class="card">
+  <div class="card users-panel">
     <h3 class="section-title" data-i18n="kpi_online"></h3>
     <p class="section-subtitle" data-i18n="section_trend"></p>
     <canvas id="onlineChart" class="chart"></canvas>
   </div>
-  <div class="card">
+  <div class="card users-panel">
     <h3 class="section-title" data-i18n="users_title"></h3>
     <p class="section-subtitle" data-i18n="section_table"></p>
     <div class="table-shell">
@@ -42,12 +54,12 @@ async function refresh(){
   document.getElementById('cnt').textContent=tr('kpi_online')+': '+d.count;
   onlineTrend.push(Number(d.count||0));
   if(onlineTrend.length>30)onlineTrend.shift();
-  drawLine(document.getElementById('onlineChart'),onlineTrend,'#0ea5e9');
+  drawLine(document.getElementById('onlineChart'),onlineTrend,{stroke:'#3d7f90',fill:'rgba(61,127,144,.12)',dot:'#3d7f90'});
   const users=d.users||[];
   document.getElementById('tb').innerHTML=users.length?users.map(u=>'<tr><td>'+escapeHTML(u.id)+'</td><td>'+escapeHTML(u.username)+'</td><td>'+escapeHTML(u.player_name)+'</td><td>'+escapeHTML(u.player_tag)+'</td><td>'+statusPill(u.is_online?tr('status_online'):tr('status_offline'),u.is_online?'online':'offline')+'</td></tr>').join(''):emptyRow(5,tr('empty_users'));
 }
 window.pageRefreshText=()=>refresh();
 refresh();
 setInterval(refresh,2000);
-window.addEventListener('resize',()=>drawLine(document.getElementById('onlineChart'),onlineTrend,'#0ea5e9'));
+window.addEventListener('resize',()=>drawLine(document.getElementById('onlineChart'),onlineTrend,{stroke:'#3d7f90',fill:'rgba(61,127,144,.12)',dot:'#3d7f90'}));
 </script>

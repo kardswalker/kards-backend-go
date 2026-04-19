@@ -24,8 +24,16 @@
   .users-manage-select{
     min-height:34px;
     padding:6px 10px;
-    border-radius:10px;
+    border-radius:8px;
     font-size:13px;
+  }
+  .users-manage-table thead th{
+    padding-top:13px;
+    padding-bottom:13px;
+    letter-spacing:.06em;
+  }
+  .users-manage-table tbody td{
+    border-bottom-color:rgba(44,95,95,.10);
   }
   .users-manage-name{
     width:180px;
@@ -57,15 +65,26 @@
     gap:12px;
     flex-wrap:wrap;
     margin-top:14px;
+    padding:12px 14px;
+    border:1px solid rgba(44,95,95,.10);
+    border-radius:10px;
+    background:rgba(224,246,243,.42);
   }
   .users-manage-pager .compact-note{
     font-size:13px;
+    color:#355f63;
+    font-weight:700;
   }
   .users-manage-pager-actions{
     display:flex;
     align-items:center;
     gap:8px;
     flex-wrap:wrap;
+  }
+  .users-manage-pager-actions .btn{
+    min-width:96px;
+    justify-content:center;
+    padding:8px 12px;
   }
   .users-manage-toolbar-input{
     width:120px;
