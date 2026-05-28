@@ -107,7 +107,7 @@ func UpdateDeck(c *gin.Context) {
 	updates := map[string]interface{}{}
 	if req.Action == "fill" {
 		if req.DeckCode != "" {
-			updates["deck_code"] = req.DeckCode
+			updates["deck_code"] = deckcode.EnsureDeckCodeHQ(req.DeckCode, deck.MainFaction)
 		}
 		if req.Name != "" {
 			updates["name"] = req.Name

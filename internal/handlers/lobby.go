@@ -3,6 +3,7 @@ package handlers
 import (
 	"net/http"
 
+	"kards-backend-go/internal/database"
 	"kards-backend-go/internal/game"
 	"kards-backend-go/internal/models"
 
@@ -27,7 +28,12 @@ func JoinLobby(c *gin.Context) {
 		return
 	}
 
-	// 调用统一管理器的排队方法
+	var deck models.Deck
+	if err := database.DB.Select("id", "user_id").First(&deck, req.DeckID).Error; err != nil || deck.UserID != user.ID {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "deck not found"})
+		return
+	}
+
 	game.GlobalManager.AddMatchPlayers(user.ID, req.DeckID)
 
 	c.String(http.StatusOK, "OK")

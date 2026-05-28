@@ -119,29 +119,8 @@ func (gm *GameManager) CreateBotMatch(playerID, deckID uint) (int64, error) {
 		BotLastEndedTurn: 0,
 	}
 
-	for i := 0; i < len(leftDeck); i++ {
-		if i < 4 {
-			leftDeck[i].Location = "hand_left"
-			leftDeck[i].LocationNumber = i
-			match.LeftHandCards = append(match.LeftHandCards, leftDeck[i])
-			continue
-		}
-		leftDeck[i].Location = "deck_left"
-		leftDeck[i].LocationNumber = len(match.LeftDeckCards)
-		match.LeftDeckCards = append(match.LeftDeckCards, leftDeck[i])
-	}
-
-	for i := 0; i < len(rightDeck); i++ {
-		if i < 5 {
-			rightDeck[i].Location = "hand_right"
-			rightDeck[i].LocationNumber = i
-			match.RightHandCards = append(match.RightHandCards, rightDeck[i])
-			continue
-		}
-		rightDeck[i].Location = "deck_right"
-		rightDeck[i].LocationNumber = len(match.RightDeckCards)
-		match.RightDeckCards = append(match.RightDeckCards, rightDeck[i])
-	}
+	match.LeftHandCards, match.LeftDeckCards = dealStartingCards(leftDeck, 4, "hand_left", "deck_left")
+	match.RightHandCards, match.RightDeckCards = dealStartingCards(rightDeck, 5, "hand_right", "deck_right")
 	gm.prepareSimpleBotMulligan(match)
 
 	gm.ActiveMatches.Store(newID, match)

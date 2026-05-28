@@ -1,6 +1,7 @@
 package game
 
 import (
+	"fmt"
 	"log"
 	"sync"
 	"sync/atomic"
@@ -34,6 +35,10 @@ func (gm *GameManager) AddMatchPlayers(userID, deckID uint) bool {
 	gm.queueMutex.Lock()
 	defer gm.queueMutex.Unlock()
 
+	if gm.HasActiveMatch(userID) {
+		return true
+	}
+
 	for _, req := range gm.WaitingQueue {
 		if req.UserID == userID {
 			return true
@@ -43,6 +48,19 @@ func (gm *GameManager) AddMatchPlayers(userID, deckID uint) bool {
 	gm.WaitingQueue = append(gm.WaitingQueue, &MatchRequest{UserID: userID, DeckID: deckID})
 	log.Printf("👤 玩家 %d 加入匹配池, 当前人数: %d", userID, len(gm.WaitingQueue))
 	return true
+}
+
+func (gm *GameManager) HasActiveMatch(userID uint) bool {
+	found := false
+	gm.ActiveMatches.Range(func(_, value interface{}) bool {
+		match := value.(*Match)
+		if match.PlayerLeft == userID || match.PlayerRight == userID {
+			found = true
+			return false
+		}
+		return true
+	})
+	return found
 }
 
 func (gm *GameManager) IsUserWaiting(userID uint) bool {
@@ -68,7 +86,11 @@ func (gm *GameManager) StartMatchmaker() {
 			gm.WaitingQueue = gm.WaitingQueue[2:]
 			gm.queueMutex.Unlock()
 
-			go gm.CreateMatch(p1, p2)
+			go func() {
+				if err := gm.CreateMatch(p1, p2); err != nil {
+					log.Printf("failed to create match: %v", err)
+				}
+			}()
 		} else {
 			gm.queueMutex.Unlock()
 			time.Sleep(200 * time.Millisecond)
@@ -76,34 +98,51 @@ func (gm *GameManager) StartMatchmaker() {
 	}
 }
 
-func (gm *GameManager) CreateMatch(p1, p2 *MatchRequest) {
-	newID := atomic.AddInt64(&gm.matchIDCounter, 1)
-
+func (gm *GameManager) CreateMatch(p1, p2 *MatchRequest) error {
 	var uL, uR models.User
 	var dL, dR models.Deck
-	database.DB.First(&uL, p1.UserID)
-	database.DB.First(&uR, p2.UserID)
-	database.DB.First(&dL, p1.DeckID)
-	database.DB.First(&dR, p2.DeckID)
+	if err := database.DB.First(&uL, p1.UserID).Error; err != nil {
+		return fmt.Errorf("left player not found: %w", err)
+	}
+	if err := database.DB.First(&uR, p2.UserID).Error; err != nil {
+		return fmt.Errorf("right player not found: %w", err)
+	}
+	if err := database.DB.First(&dL, p1.DeckID).Error; err != nil {
+		return fmt.Errorf("left deck not found: %w", err)
+	}
+	if dL.UserID != p1.UserID {
+		return fmt.Errorf("left deck does not belong to player %d", p1.UserID)
+	}
+	if err := database.DB.First(&dR, p2.DeckID).Error; err != nil {
+		return fmt.Errorf("right deck not found: %w", err)
+	}
+	if dR.UserID != p2.UserID {
+		return fmt.Errorf("right deck does not belong to player %d", p2.UserID)
+	}
 
-	parsedL, _ := deckcode.ParseDeckCode(dL.DeckCode)
-	parsedR, _ := deckcode.ParseDeckCode(dR.DeckCode)
+	parsedL, err := deckcode.ParseDeckCode(dL.DeckCode)
+	if err != nil {
+		return fmt.Errorf("invalid left deck code: %w", err)
+	}
+	parsedR, err := deckcode.ParseDeckCode(dR.DeckCode)
+	if err != nil {
+		return fmt.Errorf("invalid right deck code: %w", err)
+	}
 
 	cardsL := gm.CreateMatchCards("left", parsedL)
 	cardsR := gm.CreateMatchCards("right", parsedR)
 
 	leftDeck := append([]Card(nil), cardsL[1:]...)
 	if err := ShuffleDeckCards(leftDeck, "deck_left"); err != nil {
-		log.Printf("failed to shuffle left deck for match %d: %v", newID, err)
-		return
+		return fmt.Errorf("failed to shuffle left deck: %w", err)
 	}
 
 	rightDeck := append([]Card(nil), cardsR[1:]...)
 	if err := ShuffleDeckCards(rightDeck, "deck_right"); err != nil {
-		log.Printf("failed to shuffle right deck for match %d: %v", newID, err)
-		return
+		return fmt.Errorf("failed to shuffle right deck: %w", err)
 	}
 
+	newID := atomic.AddInt64(&gm.matchIDCounter, 1)
 	match := &Match{
 		MatchID:           newID,
 		Status:            "pending",
@@ -148,30 +187,10 @@ func (gm *GameManager) CreateMatch(p1, p2 *MatchRequest) {
 		RightPlayerTag:  uR.PlayerTag,
 	}
 
-	for i := 0; i < len(leftDeck); i++ {
-		if i < 4 {
-			leftDeck[i].Location = "hand_left"
-			leftDeck[i].LocationNumber = i
-			match.LeftHandCards = append(match.LeftHandCards, leftDeck[i])
-			continue
-		}
-		leftDeck[i].Location = "deck_left"
-		leftDeck[i].LocationNumber = len(match.LeftDeckCards)
-		match.LeftDeckCards = append(match.LeftDeckCards, leftDeck[i])
-	}
-
-	for i := 0; i < len(rightDeck); i++ {
-		if i < 5 {
-			rightDeck[i].Location = "hand_right"
-			rightDeck[i].LocationNumber = i
-			match.RightHandCards = append(match.RightHandCards, rightDeck[i])
-			continue
-		}
-		rightDeck[i].Location = "deck_right"
-		rightDeck[i].LocationNumber = len(match.RightDeckCards)
-		match.RightDeckCards = append(match.RightDeckCards, rightDeck[i])
-	}
+	match.LeftHandCards, match.LeftDeckCards = dealStartingCards(leftDeck, 4, "hand_left", "deck_left")
+	match.RightHandCards, match.RightDeckCards = dealStartingCards(rightDeck, 5, "hand_right", "deck_right")
 
 	gm.ActiveMatches.Store(newID, match)
 	log.Printf("⚔️ 对战已就绪 [%d]: %s vs %s", newID, uL.PlayerName, uR.PlayerName)
+	return nil
 }

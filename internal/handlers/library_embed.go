@@ -4,6 +4,8 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+
+	"kards-backend-go/internal/config"
 )
 
 type Card struct {
@@ -25,8 +27,13 @@ var libraryJSON []byte
 var LibraryData Library
 
 func init() {
-	if err := json.Unmarshal(libraryJSON, &LibraryData); err != nil {
-		panic(fmt.Sprintf("failed to load embedded library.json: %v", err))
+	data, err := loadJSONResource(config.LibraryJSONPath, libraryJSON, "library.json")
+	if err != nil {
+		panic(err)
+	}
+
+	if err := json.Unmarshal(data, &LibraryData); err != nil {
+		panic(fmt.Sprintf("failed to parse library.json: %v", err))
 	}
 
 	if LibraryData.Cards == nil {

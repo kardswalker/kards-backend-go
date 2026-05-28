@@ -13,16 +13,19 @@ import (
 
 // Config 瀹氫箟鎵€鏈夊彲閰嶇疆椤?
 type Config struct {
-	Port          int    `yaml:"port"`
-	Ip            string `yaml:"ip"`
-	WSPort        int    `yaml:"wsport"`
-	DatabaseType  string `yaml:"database_type"`
-	DatabaseURL   string `yaml:"database_url"`
-	DatabasePath  string `yaml:"database_path"`
-	JWTKey        string `yaml:"jwt_key"`
-	JWTAlgorithm  string `yaml:"jwt_algorithm"`
-	JWTExpiry     string `yaml:"jwt_expiry"`
-	AdminPassword string `yaml:"admin_password"`
+	Port            int      `yaml:"port"`
+	Ip              string   `yaml:"ip"`
+	WSPort          int      `yaml:"wsport"`
+	DatabaseType    string   `yaml:"database_type"`
+	DatabaseURL     string   `yaml:"database_url"`
+	DatabasePath    string   `yaml:"database_path"`
+	JWTKey          string   `yaml:"jwt_key"`
+	JWTAlgorithm    string   `yaml:"jwt_algorithm"`
+	JWTExpiry       string   `yaml:"jwt_expiry"`
+	AdminPassword   string   `yaml:"admin_password"`
+	GameVersions    []string `yaml:"game_versions"`
+	LibraryJSONPath string   `yaml:"library_json_path"`
+	ItemsJSONPath   string   `yaml:"items_json_path"`
 }
 
 var cfg *Config
@@ -30,16 +33,19 @@ var FirstRun bool
 var configMu sync.Mutex
 
 var (
-	Host          string
-	Port          int
-	WSPort        int
-	DatabaseType  string
-	DatabaseURL   string
-	DatabasePath  string
-	JWTKey        []byte
-	JWTAlgorithm  string
-	JWTExpiry     time.Duration
-	AdminPassword string
+	Host            string
+	Port            int
+	WSPort          int
+	DatabaseType    string
+	DatabaseURL     string
+	DatabasePath    string
+	JWTKey          []byte
+	JWTAlgorithm    string
+	JWTExpiry       time.Duration
+	AdminPassword   string
+	GameVersions    []string
+	LibraryJSONPath string
+	ItemsJSONPath   string
 )
 
 const (
@@ -54,6 +60,16 @@ const (
 	defaultJWTExpiry     = "24h"
 	defaultAdminPassword = "change-this-password"
 )
+
+var defaultGameVersions = []string{
+	"Kards 1.47",
+	"Kards 1.49",
+	"Kards 1.50",
+	"Kards 1.51",
+	"Kards 1.52",
+	"Kards 1.53",
+	"Kards 1.54",
+}
 
 func init() {
 	var err error
@@ -71,6 +87,9 @@ func init() {
 	JWTKey = []byte(cfg.JWTKey)
 	JWTAlgorithm = cfg.JWTAlgorithm
 	AdminPassword = cfg.AdminPassword
+	GameVersions = append([]string(nil), cfg.GameVersions...)
+	LibraryJSONPath = cfg.LibraryJSONPath
+	ItemsJSONPath = cfg.ItemsJSONPath
 	var dur time.Duration
 	if dur, err = time.ParseDuration(cfg.JWTExpiry); err != nil {
 		panic("invalid jwt_expiry: " + err.Error())
@@ -83,25 +102,23 @@ func LoadConfig() (*Config, error) {
 	if err := loadYAMLConfig(cfgFromFile); err != nil && !os.IsNotExist(err) {
 		return nil, fmt.Errorf("failed to read config.yaml: %w", err)
 	}
-	hadAdminPasswordInFile := cfgFromFile.AdminPassword != ""
+	existingKeys := loadConfigKeys()
+	_, configExists := existingKeys[""]
 
 	applyEnvOverrides(cfgFromFile)
 
 	applyDefaults(cfgFromFile)
 
 	// 濡傛灉閰嶇疆鏂囦欢涓嶅瓨鍦紝鍒欏垱寤哄畠
-	configPath := os.Getenv("CONFIG_PATH")
-	if configPath == "" {
-		configPath = "config.yaml"
-	}
+	configPath := getConfigPath()
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
 		FirstRun = true
 		if err := saveYAMLConfig(cfgFromFile); err != nil {
 			return nil, fmt.Errorf("failed to create config.yaml: %w", err)
 		}
-	} else if !hadAdminPasswordInFile && os.Getenv("ADMIN_PASSWORD") == "" {
+	} else if configExists && shouldPersistDefaultedConfig(existingKeys) {
 		if err := saveYAMLConfig(cfgFromFile); err != nil {
-			return nil, fmt.Errorf("failed to update config.yaml with admin_password: %w", err)
+			return nil, fmt.Errorf("failed to update config.yaml defaults: %w", err)
 		}
 	}
 
@@ -109,12 +126,7 @@ func LoadConfig() (*Config, error) {
 }
 
 func loadYAMLConfig(cfg *Config) error {
-	configPath := os.Getenv("CONFIG_PATH")
-	if configPath == "" {
-		configPath = "config.yaml"
-	}
-
-	data, err := os.ReadFile(configPath)
+	data, err := os.ReadFile(getConfigPath())
 	if err != nil {
 		return err
 	}
@@ -126,17 +138,54 @@ func loadYAMLConfig(cfg *Config) error {
 }
 
 func saveYAMLConfig(cfg *Config) error {
-	configPath := os.Getenv("CONFIG_PATH")
-	if configPath == "" {
-		configPath = "config.yaml"
-	}
-
 	data, err := yaml.Marshal(cfg)
 	if err != nil {
 		return err
 	}
 
-	return os.WriteFile(configPath, data, 0644)
+	return os.WriteFile(getConfigPath(), data, 0644)
+}
+
+func getConfigPath() string {
+	if configPath := os.Getenv("CONFIG_PATH"); configPath != "" {
+		return configPath
+	}
+	return "config.yaml"
+}
+
+func loadConfigKeys() map[string]struct{} {
+	keys := make(map[string]struct{})
+	data, err := os.ReadFile(getConfigPath())
+	if err != nil {
+		return keys
+	}
+
+	var raw map[string]interface{}
+	if err := yaml.Unmarshal(data, &raw); err != nil {
+		return keys
+	}
+
+	keys[""] = struct{}{}
+	for key := range raw {
+		keys[key] = struct{}{}
+	}
+	return keys
+}
+
+func shouldPersistDefaultedConfig(keys map[string]struct{}) bool {
+	if _, ok := keys["admin_password"]; !ok && os.Getenv("ADMIN_PASSWORD") == "" {
+		return true
+	}
+	if _, ok := keys["game_versions"]; !ok && os.Getenv("GAME_VERSIONS") == "" {
+		return true
+	}
+	if _, ok := keys["library_json_path"]; !ok && os.Getenv("LIBRARY_JSON_PATH") == "" {
+		return true
+	}
+	if _, ok := keys["items_json_path"]; !ok && os.Getenv("ITEMS_JSON_PATH") == "" {
+		return true
+	}
+	return false
 }
 
 func NormalizeDatabaseType(v string) string {
@@ -185,6 +234,15 @@ func applyEnvOverrides(cfg *Config) {
 	if v := getEnv("ADMIN_PASSWORD", ""); v != "" {
 		cfg.AdminPassword = v
 	}
+	if v := getEnv("GAME_VERSIONS", ""); v != "" {
+		cfg.GameVersions = splitCSV(v)
+	}
+	if v := getEnv("LIBRARY_JSON_PATH", ""); v != "" {
+		cfg.LibraryJSONPath = v
+	}
+	if v := getEnv("ITEMS_JSON_PATH", ""); v != "" {
+		cfg.ItemsJSONPath = v
+	}
 }
 
 func applyDefaults(cfg *Config) {
@@ -219,6 +277,21 @@ func applyDefaults(cfg *Config) {
 	if cfg.AdminPassword == "" {
 		cfg.AdminPassword = defaultAdminPassword
 	}
+	if len(cfg.GameVersions) == 0 {
+		cfg.GameVersions = append([]string(nil), defaultGameVersions...)
+	}
+}
+
+func splitCSV(value string) []string {
+	parts := strings.Split(value, ",")
+	result := make([]string, 0, len(parts))
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part != "" {
+			result = append(result, part)
+		}
+	}
+	return result
 }
 
 func getEnv(key, defaultValue string) string {
@@ -280,12 +353,34 @@ func PromptInitialSetup() error {
 		wsPort = defaultWSPort
 	}
 
+	fmt.Print("Game versions, comma-separated (default built-in): ")
+	var versionsInput string
+	fmt.Scanln(&versionsInput)
+	gameVersions := cfg.GameVersions
+	if versionsInput != "" {
+		gameVersions = splitCSV(versionsInput)
+	}
+	if len(gameVersions) == 0 {
+		gameVersions = append([]string(nil), defaultGameVersions...)
+	}
+
+	fmt.Print("Library JSON path (empty uses embedded library.json): ")
+	var libraryJSONPath string
+	fmt.Scanln(&libraryJSONPath)
+
+	fmt.Print("Items JSON path (empty uses embedded items_library.json): ")
+	var itemsJSONPath string
+	fmt.Scanln(&itemsJSONPath)
+
 	cfg.DatabaseType = dbType
 	cfg.DatabaseURL = dbURL
 	cfg.DatabasePath = dbPath
 	cfg.Ip = ip
 	cfg.Port = port
 	cfg.WSPort = wsPort
+	cfg.GameVersions = gameVersions
+	cfg.LibraryJSONPath = strings.TrimSpace(libraryJSONPath)
+	cfg.ItemsJSONPath = strings.TrimSpace(itemsJSONPath)
 	if cfg.AdminPassword == "" {
 		cfg.AdminPassword = defaultAdminPassword
 	}
@@ -301,6 +396,9 @@ func PromptInitialSetup() error {
 	DatabaseURL = cfg.DatabaseURL
 	DatabasePath = cfg.DatabasePath
 	AdminPassword = cfg.AdminPassword
+	GameVersions = append([]string(nil), cfg.GameVersions...)
+	LibraryJSONPath = cfg.LibraryJSONPath
+	ItemsJSONPath = cfg.ItemsJSONPath
 
 	fmt.Println("Configuration saved. Please restart the server.")
 	return nil

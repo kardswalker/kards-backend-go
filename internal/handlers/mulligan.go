@@ -2,18 +2,13 @@ package handlers
 
 import (
 	"kards-backend-go/internal/game"
-	"kards-backend-go/internal/models"
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
 
 // HandleMulligan 处理玩家换牌请求
 func HandleMulligan(c *gin.Context) {
-	matchID, _ := strconv.ParseInt(c.Param("match_id"), 10, 64)
-	user := c.MustGet("user").(*models.User)
-
 	var req struct {
 		DiscardedCardIDs []int `json:"discarded_card_ids"`
 	}
@@ -22,26 +17,23 @@ func HandleMulligan(c *gin.Context) {
 		return
 	}
 
-	val, ok := game.GlobalManager.ActiveMatches.Load(matchID)
+	match, _, side, ok := currentUserMatch(c)
 	if !ok {
-		c.AbortWithStatusJSON(404, gin.H{"error": "match not found"})
 		return
 	}
-	match := val.(*game.Match)
 
 	match.Lock()
 	defer match.Unlock()
 
 	var hand *[]game.Card
 	var deck *[]game.Card
-	var side string
 	var replacements *[]game.Card
 
-	if match.PlayerLeft == user.ID {
-		hand, deck, side = &match.LeftHandCards, &match.LeftDeckCards, "left"
+	if side == "left" {
+		hand, deck = &match.LeftHandCards, &match.LeftDeckCards
 		replacements = &match.LeftReplacementCards
 	} else {
-		hand, deck, side = &match.RightHandCards, &match.RightDeckCards, "right"
+		hand, deck = &match.RightHandCards, &match.RightDeckCards
 		replacements = &match.RightReplacementCards
 	}
 
@@ -99,14 +91,10 @@ func HandleMulligan(c *gin.Context) {
 
 // GetMulliganLeft 返回左手玩家的牌库和替换卡
 func GetMulliganLeft(c *gin.Context) {
-	matchID, _ := strconv.ParseInt(c.Param("match_id"), 10, 64)
-
-	val, ok := game.GlobalManager.ActiveMatches.Load(matchID)
+	match, _, _, ok := currentUserMatch(c)
 	if !ok {
-		c.AbortWithStatusJSON(404, gin.H{"error": "match not found"})
 		return
 	}
-	match := val.(*game.Match)
 
 	match.RLock()
 	defer match.RUnlock()
@@ -119,14 +107,10 @@ func GetMulliganLeft(c *gin.Context) {
 
 // GetMulliganRight 返回右手玩家的牌库和替换卡
 func GetMulliganRight(c *gin.Context) {
-	matchID, _ := strconv.ParseInt(c.Param("match_id"), 10, 64)
-
-	val, ok := game.GlobalManager.ActiveMatches.Load(matchID)
+	match, _, _, ok := currentUserMatch(c)
 	if !ok {
-		c.AbortWithStatusJSON(404, gin.H{"error": "match not found"})
 		return
 	}
-	match := val.(*game.Match)
 
 	match.RLock()
 	defer match.RUnlock()

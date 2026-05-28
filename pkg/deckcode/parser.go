@@ -43,38 +43,34 @@ func ParseDeckCode(deckCode string) (*ParsedDeck, error) {
 		return nil, fmt.Errorf("invalid prefix")
 	}
 
-	content := strings.TrimPrefix(deckCode, "%%")
-	parts := strings.Split(content, "|")
-	if len(parts) < 2 {
-		return nil, fmt.Errorf("invalid format")
-	}
-
-	countryPart := parts[0]
-	if len(countryPart) < 2 {
-		return nil, fmt.Errorf("invalid country code")
+	countryPart, cardsPart, hqPart, err := splitDeckCode(deckCode)
+	if err != nil {
+		return nil, err
 	}
 
 	deck := &ParsedDeck{
 		MainCountry: CountryMap[string(countryPart[0])],
 		AllyCountry: CountryMap[string(countryPart[1])],
 		Cards:       make(map[string]int),
-	}
-
-	cardsPart := parts[1]
-	if idx := strings.Index(cardsPart, "~"); idx != -1 {
-		cardsPart = cardsPart[:idx]
-	}
-
-	if len(parts) >= 3 && len(parts[2]) >= 2 {
-		// legacy format: %%xx|cards|hq
-		deck.HQ = parts[2][:2]
+		HQ:          hqPart,
 	}
 
 	groups := strings.Split(cardsPart, ";")
-	if len(groups) > 0 && len(groups[0]) >= 2 {
-		// current format: %%xx|yy;;; where yy is HQ
-		deck.HQ = groups[0][:2]
-		groups[0] = groups[0][2:]
+	if len(groups) != 4 {
+		return nil, fmt.Errorf("invalid card group count")
+	}
+
+	if deck.HQ == "" {
+		if defaultHQ, ok := DefaultHQCode(deck.MainCountry); ok && strings.HasPrefix(groups[0], defaultHQ) {
+			deck.HQ = defaultHQ
+			groups[0] = groups[0][len(defaultHQ):]
+		}
+	}
+
+	if deck.HQ == "" {
+		if defaultHQ, ok := DefaultHQCode(deck.MainCountry); ok {
+			deck.HQ = defaultHQ
+		}
 	}
 
 	for i, group := range groups {
@@ -108,10 +104,10 @@ func BuildDefaultDeckCode(mainFaction, allyFaction string) string {
 
 	hqCode, ok := DefaultHQCode(mainFaction)
 	if !ok {
-		return "%%" + mainCode + allyCode + "|"
+		return "%%" + mainCode + allyCode + "|;;;"
 	}
 
-	return "%%" + mainCode + allyCode + "|" + hqCode + ";;;"
+	return "%%" + mainCode + allyCode + "|;;;|" + hqCode
 }
 
 func DefaultHQCode(mainFaction string) (string, bool) {
@@ -132,33 +128,54 @@ func EnsureDeckCodeHQ(deckCode, mainFaction string) string {
 		return deckCode
 	}
 
-	content := strings.TrimPrefix(deckCode, "%%")
-	sep := strings.Index(content, "|")
-	if sep == -1 {
+	countryPart, cardsPart, existingHQ, err := splitDeckCode(deckCode)
+	if err != nil {
 		return deckCode
 	}
 
-	countryPart := content[:sep]
-	rest := content[sep+1:]
-	if idx := strings.Index(rest, "|"); idx != -1 {
-		// convert legacy format %%xx|cards|hq to modern layout
-		rest = rest[:idx]
+	groups := strings.Split(normalizeCardsPart(cardsPart), ";")
+	if len(groups) == 4 && existingHQ == "" && strings.HasPrefix(groups[0], hqCode) {
+		groups[0] = groups[0][len(hqCode):]
 	}
 
-	groups := strings.Split(rest, ";")
-	if len(groups) == 0 {
-		groups = []string{""}
-	}
-	if len(groups[0]) >= 2 {
-		groups[0] = hqCode + groups[0][2:]
-	} else {
-		groups[0] = hqCode + groups[0]
+	if existingHQ == "" {
+		existingHQ = hqCode
 	}
 
-	normalized := strings.Join(groups, ";")
-	if !strings.Contains(normalized, ";") {
-		normalized += ";;;"
+	return "%%" + countryPart + "|" + strings.Join(groups, ";") + "|" + existingHQ
+}
+
+func splitDeckCode(deckCode string) (countryPart, cardsPart, hqPart string, err error) {
+	content := strings.TrimPrefix(deckCode, "%%")
+	parts := strings.Split(content, "|")
+	if len(parts) < 2 || len(parts) > 3 {
+		return "", "", "", fmt.Errorf("invalid format")
 	}
 
-	return "%%" + countryPart + "|" + normalized
+	countryPart = parts[0]
+	if len(countryPart) != 2 {
+		return "", "", "", fmt.Errorf("invalid country code")
+	}
+
+	cardsPart = parts[1]
+	if idx := strings.Index(cardsPart, "~"); idx != -1 {
+		cardsPart = cardsPart[:idx]
+	}
+
+	if len(parts) == 3 {
+		hqPart = parts[2]
+	}
+
+	return countryPart, cardsPart, hqPart, nil
+}
+
+func normalizeCardsPart(cardsPart string) string {
+	groups := strings.Split(cardsPart, ";")
+	for len(groups) < 4 {
+		groups = append(groups, "")
+	}
+	if len(groups) > 4 {
+		groups = groups[:4]
+	}
+	return strings.Join(groups, ";")
 }

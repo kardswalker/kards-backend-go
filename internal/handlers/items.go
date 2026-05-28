@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 
+	"kards-backend-go/internal/config"
 	"kards-backend-go/internal/database"
 	"kards-backend-go/internal/models"
 
@@ -21,7 +22,12 @@ var allItems []models.Item
 
 func init() {
 	// 启动时解析 JSON 文件
-	if err := json.Unmarshal(itemsJSON, &allItems); err != nil {
+	data, err := loadJSONResource(config.ItemsJSONPath, itemsJSON, "items_library.json")
+	if err != nil {
+		panic(err)
+	}
+
+	if err := json.Unmarshal(data, &allItems); err != nil {
 		panic("failed to parse items JSON: " + err.Error())
 	}
 }

@@ -186,20 +186,16 @@ func GetMatchInfo(c *gin.Context) {
 }
 
 func GetMatchStatus(c *gin.Context) {
-	matchID, _ := strconv.ParseInt(c.Param("match_id"), 10, 64)
-	user := c.MustGet("user").(*models.User)
-
-	val, ok := game.GlobalManager.ActiveMatches.Load(matchID)
+	match, _, side, ok := currentUserMatch(c)
 	if !ok {
-		c.Status(http.StatusNotFound)
 		return
 	}
-	match := val.(*game.Match)
 
 	match.Lock()
-	if user.ID == match.PlayerLeft {
+	switch side {
+	case "left":
 		match.LvlLoadedLeft = 1
-	} else if user.ID == match.PlayerRight {
+	case "right":
 		match.LvlLoadedRight = 1
 	}
 
@@ -213,16 +209,10 @@ func GetMatchStatus(c *gin.Context) {
 }
 
 func EndMatch(c *gin.Context) {
-	user := c.MustGet("user").(*models.User)
-
-	matchID, _ := strconv.ParseInt(c.Param("match_id"), 10, 64)
-	val, ok := game.GlobalManager.ActiveMatches.Load(matchID)
+	match, user, _, ok := currentUserMatch(c)
 	if !ok {
-		c.Status(http.StatusNotFound)
 		return
 	}
-
-	match := val.(*game.Match)
 
 	var body struct {
 		A string `json:"a"`
@@ -263,11 +253,49 @@ func EndMatch(c *gin.Context) {
 	match.ActionIDSess = actionIDSess
 	match.Unlock()
 
-	_ = valData
-	game.GlobalManager.EndMatchBySurrender(user.ID, "surrender")
+	result := game.MatchEndResult{
+		WinnerSide: stringValue(valData["winner_side"]),
+		WinnerID:   uintValue(valData["winner_id"]),
+		Reason:     stringValue(valData["result"]),
+	}
+	if result.Reason == "" {
+		result.Reason = stringValue(valData["reason"])
+	}
+	if !game.GlobalManager.EndMatch(match, user.ID, result) {
+		c.Status(http.StatusNotFound)
+		return
+	}
 	c.String(http.StatusOK, "OK")
 }
 
 func Reconnect(c *gin.Context) {
 	c.JSON(http.StatusOK, "running")
+}
+
+func stringValue(v interface{}) string {
+	if s, ok := v.(string); ok {
+		return s
+	}
+	return ""
+}
+
+func uintValue(v interface{}) uint {
+	switch n := v.(type) {
+	case float64:
+		if n > 0 {
+			return uint(n)
+		}
+	case int:
+		if n > 0 {
+			return uint(n)
+		}
+	case uint:
+		return n
+	case string:
+		parsed, err := strconv.ParseUint(n, 10, 64)
+		if err == nil {
+			return uint(parsed)
+		}
+	}
+	return 0
 }

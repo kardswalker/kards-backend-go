@@ -262,7 +262,7 @@ func HandleSession(c *gin.Context) {
 		NewEffectBar:           1,
 		NewEffectBarPc:         1,
 		NewEffectIcons:         1,
-		Versions:               []string{"Kards 1.47", "Kards 1.49", "Kards 1.50"},
+		Versions:               append([]string(nil), config.GameVersions...),
 		LockedCards: []map[string]interface{}{
 			{
 				"cards":       []string{"card_unit_whirlwind", "card_event_pound", "card_unit_tiger_moth", "card_event_harass", "card_unit_salamander", "card_unit_henschel_he_129", "card_unit_ilyushin_10", "card_unit_p_39_airacobra", "card_event_out_with_the_old", "card_unit_tigercat", "card_unit_seahawk", "card_event_screening_force", "card_unit_n1k1_kyofu", "card_event_flight_to_oblivion", "card_unit_kyushu_j7w3", "card_event_sally", "card_event_air_strips", "card_event_pilot_escape", "card_unit_fokker_finland"},

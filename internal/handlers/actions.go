@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"net/http"
-	"strconv"
 
 	"kards-backend-go/internal/game"
 	"kards-backend-go/pkg/security"
@@ -11,9 +10,6 @@ import (
 )
 
 func HandleActions(c *gin.Context) {
-	matchIDStr := c.Param("match_id")
-	matchID, _ := strconv.ParseInt(matchIDStr, 10, 64)
-
 	var body struct {
 		A string `json:"a"`
 	}
@@ -22,12 +18,10 @@ func HandleActions(c *gin.Context) {
 		return
 	}
 
-	val, ok := game.GlobalManager.ActiveMatches.Load(matchID)
+	match, _, _, ok := currentUserMatch(c)
 	if !ok {
-		c.Status(http.StatusNotFound)
 		return
 	}
-	match := val.(*game.Match)
 
 	actionIDSess, data, err := security.DecryptPacket(body.A)
 	if err != nil {
@@ -58,9 +52,6 @@ func HandleActions(c *gin.Context) {
 }
 
 func PollActions(c *gin.Context) {
-	matchIDStr := c.Param("match_id")
-	matchID, _ := strconv.ParseInt(matchIDStr, 10, 64)
-
 	var req struct {
 		OpponentID  uint `json:"opponent_id"`
 		MinActionID int  `json:"min_action_id"`
@@ -70,12 +61,10 @@ func PollActions(c *gin.Context) {
 		return
 	}
 
-	val, ok := game.GlobalManager.ActiveMatches.Load(matchID)
+	match, _, _, ok := currentUserMatch(c)
 	if !ok {
-		c.Status(http.StatusNotFound)
 		return
 	}
-	match := val.(*game.Match)
 
 	game.GlobalManager.TickSimpleBot(match)
 
